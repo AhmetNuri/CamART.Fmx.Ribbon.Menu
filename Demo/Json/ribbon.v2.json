@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 2,
+  "theme": "ModernLight",
+  "activeTabId": "home",
+  "applicationCaption": "Dosya",
+  "expandedHeight": 220,
+  "tabs": [
+    {
+      "id": "home",
+      "caption": "Giriş",
+      "groups": [
+        {
+          "id": "clipboard",
+          "caption": "Pano",
+          "items": [
+            {
+              "id": "paste",
+              "type": "button",
+              "caption": "Yapıştır",
+              "command": "paste",
+              "icon": "paste",
+              "style": "large"
+            },
+            {
+              "id": "copy",
+              "type": "button",
+              "caption": "Kopyala",
+              "command": "copy",
+              "icon": "copy",
+              "style": "small"
+            },
+            {
+              "id": "clip-separator",
+              "type": "separator"
+            },
+            {
+              "id": "menu",
+              "type": "dropdownmenu",
+              "caption": "Seçenekler",
+              "style": "small",
+              "menu": [
+                {
+                  "id": "menu-paste",
+                  "command": "paste",
+                  "caption": "Yapıştır"
+                },
+                {
+                  "id": "menu-copy",
+                  "command": "copy",
+                  "caption": "Kopyala"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "format",
+          "caption": "Biçim",
+          "items": [
+            {
+              "id": "bold",
+              "type": "checkbox",
+              "caption": "Kalın",
+              "command": "bold",
+              "icon": "bold",
+              "checked": false
+            },
+            {
+              "id": "left",
+              "type": "radio",
+              "caption": "Sola",
+              "groupName": "alignment",
+              "checked": true
+            },
+            {
+              "id": "right",
+              "type": "radio",
+              "caption": "Sağa",
+              "groupName": "alignment",
+              "checked": false
+            },
+            {
+              "id": "font",
+              "type": "fontpicker",
+              "caption": "Yazı tipi",
+              "choices": [
+                "Arial",
+                "Courier New",
+                "Times New Roman"
+              ],
+              "itemIndex": 0
+            },
+            {
+              "id": "font-size",
+              "type": "fontsizepicker",
+              "caption": "Punto",
+              "choices": [
+                "9",
+                "11",
+                "14",
+                "18",
+                "24"
+              ],
+              "itemIndex": 1
+            },
+            {
+              "id": "color",
+              "type": "colorpicker",
+              "caption": "Renk",
+              "color": "#FF2479B8"
+            }
+          ]
+        },
+        {
+          "id": "values",
+          "caption": "Değerler",
+          "items": [
+            {
+              "id": "label",
+              "type": "label",
+              "caption": "Belge bilgisi"
+            },
+            {
+              "id": "name",
+              "type": "edit",
+              "caption": "Ad",
+              "text": "Örnek — İğüşçö"
+            },
+            {
+              "id": "mode",
+              "type": "combo",
+              "caption": "Görünüm",
+              "choices": [
+                "Normal",
+                "Baskı",
+                "Web"
+              ],
+              "itemIndex": 0
+            },
+            {
+              "id": "progress",
+              "type": "progress",
+              "caption": "İlerleme",
+              "min": 0,
+              "max": 100,
+              "value": 35
+            }
+          ]
+        },
+        {
+          "id": "styles",
+          "caption": "Stiller",
+          "items": [
+            {
+              "id": "gallery",
+              "type": "gallery",
+              "caption": "Renk stili",
+              "entries": [
+                {
+                  "id": "blue",
+                  "caption": "Mavi",
+                  "icon": "style.blue",
+                  "command": "style.blue"
+                },
+                {
+                  "id": "green",
+                  "caption": "Yeşil",
+                  "icon": "style.green",
+                  "command": "style.green"
+                },
+                {
+                  "id": "gold",
+                  "caption": "Altın",
+                  "icon": "style.gold",
+                  "command": "style.gold"
+                }
+              ],
+              "selectedId": "blue"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "view",
+      "caption": "Görünüm",
+      "groups": [
+        {
+          "id": "view-info",
+          "caption": "Açıklama",
+          "items": [
+            {
+              "id": "view-label",
+              "type": "label",
+              "caption": "JSON, aynı Ribbon modelini kullanır."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "quickAccess": [
+    {
+      "id": "qat-copy",
+      "item": "copy"
+    },
+    {
+      "id": "qat-bold",
+      "item": "bold"
+    }
+  ],
+  "applicationMenu": [
+    {
+      "id": "app-paste",
+      "command": "paste",
+      "caption": "Yapıştır",
+      "icon": "paste"
+    },
+    {
+      "id": "app-copy",
+      "command": "copy",
+      "caption": "Kopyala",
+      "icon": "copy"
+    }
+  ]
+}

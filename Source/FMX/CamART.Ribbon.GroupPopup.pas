@@ -1,0 +1,851 @@
+﻿unit CamART.Ribbon.GroupPopup;
+
+{$B-}
+
+interface
+
+uses
+  System.Classes,
+  System.Types,
+  System.Generics.Collections,
+  FMX.Types,
+  FMX.Controls,
+  FMX.Forms,
+  FMX.Layouts,
+  CamART.Ribbon.Types,
+  CamART.Ribbon.Layout,
+  CamART.Ribbon.ViewData,
+  CamART.Ribbon.ViewFactory,
+  CamART.Ribbon.Presenter,
+  CamART.Ribbon.Icons,
+  CamART.Ribbon.StyleContext,
+  CamART.Ribbon.Style,
+  CamART.Ribbon.Popups,
+  CamART.Ribbon.PopupGeometry;
+
+type
+  { A separate presentation of one detached group snapshot. This service
+    never owns or reparents the model, or borrows the inline item controls.
+    Close hides the native window and keeps its tree off the input stack.
+    Sync preserves the same Id/type adapters while values change. }
+  TRibbonGroupPopupService = class(TComponent)
+  private
+    FPopup: TRibbonStyledPopup;
+    FFrame, FTabHost, FContentHost: TLayout;
+    FScroll: TScrollBox;
+    FPresenter: TRibbonPresenter;
+    FFactory: TRibbonViewFactory;
+    FEngine: IRibbonLayoutEngine;
+    FAnchor: TControl;
+    FHost: TCommonCustomForm;
+    FLifetime: IRibbonPopupLifetime;
+    FWatch: TTimer;
+    FViewport: TRibbonPopupViewport;
+    FGroupId: string;
+    FInputDensity: TRibbonInputDensity;
+    FReduceMotion: Boolean;
+    FOnInput: TRibbonItemInputEvent;
+    FKeyHandlers: TDictionary<TControl, TKeyEvent>;
+    FEnterHandlers: TDictionary<TControl, TNotifyEvent>;
+    FDestroying: Boolean;
+    FSyncing: Integer;
+    FStyleContext: TRibbonStyleContext;
+    FStyleRevision: UInt64;
+    FStyleDirty: Boolean;
+    procedure SetStyleContext(const AValue: TRibbonStyleContext);
+    function PrepareStyles: Boolean;
+    function GetIsOpen: Boolean;
+    function GetIconProvider: IRibbonIconProvider;
+    procedure SetIconProvider(const AValue: IRibbonIconProvider);
+    procedure SetInputDensity(const AValue: TRibbonInputDensity);
+    procedure SetReduceMotion(const AValue: Boolean);
+    procedure ApplyMotionPolicy;
+    procedure EnsureTree;
+    procedure ReleaseTargets;
+    procedure AttachTargets(AAnchor: TControl);
+    procedure ApplySnapshot(const AGroup: TRibbonGroupViewData);
+    procedure Arrange;
+    procedure PresenterInput(Sender: TObject; const AInput: TRibbonItemInput);
+    procedure PopupClosed(Sender: TObject);
+    procedure HostPulse(Sender: TObject);
+    procedure ClosePopup(ARestoreFocus: Boolean);
+    procedure QueueFocusReturn;
+    procedure HookKeys(AObject: TFmxObject);
+    procedure UnhookKeys;
+    procedure ControlEntered(Sender: TObject);
+    procedure ControlKeyDown(Sender: TObject; var Key: Word;
+      var KeyChar: WideChar; Shift: TShiftState);
+  protected
+    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
+  public
+    constructor Create(AOwner: TComponent; AFactory: TRibbonViewFactory); reintroduce;
+    destructor Destroy; override;
+    procedure Open(AAnchor: TControl; const AGroup: TRibbonGroupViewData;
+      ADensity: TRibbonInputDensity);
+    procedure Sync(const AGroup: TRibbonGroupViewData);
+    procedure Close;
+    procedure CloseWithFocusReturn;
+    procedure CheckHostGeometry;
+    function FindItemView(const AId: string): TControl;
+    property IsOpen: Boolean read GetIsOpen;
+    property GroupId: string read FGroupId;
+    property ScrollBox: TScrollBox read FScroll;
+    property Presenter: TRibbonPresenter read FPresenter;
+    property StyleContext: TRibbonStyleContext read FStyleContext write SetStyleContext;
+    property IconProvider: IRibbonIconProvider read GetIconProvider write SetIconProvider;
+    property InputDensity: TRibbonInputDensity read FInputDensity write SetInputDensity;
+    property ReduceMotion: Boolean read FReduceMotion write SetReduceMotion default True;
+    property OnInput: TRibbonItemInputEvent read FOnInput write FOnInput;
+  end;
+
+implementation
+
+uses
+  System.SysUtils,
+  System.Math,
+  System.UITypes,
+  FMX.BehaviorManager,
+  CamART.Ribbon.Interaction,
+  CamART.Ribbon.StyledControls;
+
+type
+  TGroupControlAccess = class(TControl)
+  public
+    property OnKeyDown;
+    property OnEnter;
+  end;
+
+  TGroupPopupLifetime = class(TInterfacedObject, IRibbonPopupLifetime)
+  private
+    FAlive: Boolean;
+    FSession: UInt64;
+    FAnchor: TControl;
+    FHost: TCommonCustomForm;
+  public
+    constructor Create;
+    function IsAlive: Boolean;
+    function GetSession: UInt64;
+    function GetAnchor: TControl;
+    function GetHost: TCommonCustomForm;
+    procedure Advance;
+    procedure Stop;
+    procedure SetTargets(AAnchor: TControl; AHost: TCommonCustomForm);
+  end;
+
+  TGroupAnchorGuard = class(TComponent)
+  private
+    FAnchor: TControl;
+  protected
+    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
+  public
+    constructor CreateAnchor(AAnchor: TControl);
+    destructor Destroy; override;
+    property Anchor: TControl read FAnchor;
+  end;
+
+constructor TGroupPopupLifetime.Create;
+begin
+  inherited;
+  FAlive := True;
+  FSession := 1;
+end;
+
+function TGroupPopupLifetime.IsAlive: Boolean;
+begin
+  Result := FAlive;
+end;
+
+function TGroupPopupLifetime.GetSession: UInt64;
+begin
+  Result := FSession;
+end;
+
+function TGroupPopupLifetime.GetAnchor: TControl;
+begin
+  Result := FAnchor;
+end;
+
+function TGroupPopupLifetime.GetHost: TCommonCustomForm;
+begin
+  Result := FHost;
+end;
+
+procedure TGroupPopupLifetime.Advance;
+begin
+  if FSession = High(UInt64) then FSession := 1 else Inc(FSession);
+end;
+
+procedure TGroupPopupLifetime.Stop;
+begin
+  FAlive := False;
+  FAnchor := nil;
+  FHost := nil;
+  Advance;
+end;
+
+procedure TGroupPopupLifetime.SetTargets(AAnchor: TControl;
+  AHost: TCommonCustomForm);
+begin
+  FAnchor := AAnchor;
+  FHost := AHost;
+end;
+
+constructor TGroupAnchorGuard.CreateAnchor(AAnchor: TControl);
+begin
+  inherited Create(nil);
+  if AAnchor = nil then
+    raise EArgumentNilException.Create('A group popup anchor is required.');
+  if csDestroying in AAnchor.ComponentState then
+    raise EArgumentException.Create('A group popup anchor is being destroyed.');
+  FAnchor := AAnchor;
+  TComponent(FAnchor).FreeNotification(Self);
+end;
+
+destructor TGroupAnchorGuard.Destroy;
+begin
+  if FAnchor <> nil then TComponent(FAnchor).RemoveFreeNotification(Self);
+  inherited;
+end;
+
+procedure TGroupAnchorGuard.Notification(AComponent: TComponent;
+  Operation: TOperation);
+begin
+  inherited;
+  if (Operation = opRemove) and (AComponent = FAnchor) then FAnchor := nil;
+end;
+
+function TargetsAvailable(const AToken: IRibbonPopupLifetime): Boolean;
+var
+  Anchor: TControl;
+  Host: TCommonCustomForm;
+begin
+  Result := False;
+  if (AToken = nil) or not AToken.IsAlive then Exit;
+  Anchor := AToken.GetAnchor;
+  Host := AToken.GetHost;
+  if (Anchor = nil) or (Host = nil) then Exit;
+  Result := not (csDestroying in Anchor.ComponentState) and
+    not (csDestroying in Host.ComponentState) and Host.Visible and
+    Anchor.Visible and Anchor.ParentedVisible and Anchor.AbsoluteEnabled;
+end;
+
+function FocusIdentity(AHost: TCommonCustomForm): Pointer;
+var
+  Focused: IControl;
+begin
+  Result := nil;
+  if AHost = nil then Exit;
+  Focused := AHost.Focused;
+  if Focused <> nil then Result := Pointer(Focused.GetObject);
+end;
+
+constructor TRibbonGroupPopupService.Create(AOwner: TComponent;
+  AFactory: TRibbonViewFactory);
+begin
+  inherited Create(AOwner);
+  FReduceMotion := True;
+  if AFactory = nil then
+    raise EArgumentNilException.Create('A group popup needs a view factory.');
+  FFactory := AFactory;
+  FFactory.FreeNotification(Self);
+  FLifetime := TGroupPopupLifetime.Create;
+  FKeyHandlers := TDictionary<TControl, TKeyEvent>.Create;
+  FEnterHandlers := TDictionary<TControl, TNotifyEvent>.Create;
+  FEngine := TRibbonBasicLayoutEngine.Create;
+  FWatch := TTimer.Create(Self);
+  FWatch.Enabled := False;
+  FWatch.Interval := 100;
+  FWatch.OnTimer := HostPulse;
+  EnsureTree;
+end;
+
+destructor TRibbonGroupPopupService.Destroy;
+begin
+  FDestroying := True;
+  if FStyleContext <> nil then FStyleContext.RemoveFreeNotification(Self);
+  FStyleContext := nil;
+  FOnInput := nil;
+  if FLifetime <> nil then FLifetime.Stop;
+  if FWatch <> nil then
+  begin
+    FWatch.Enabled := False;
+    FWatch.OnTimer := nil;
+  end;
+  UnhookKeys;
+  ReleaseTargets;
+  if FPopup <> nil then
+  begin
+    FPopup.OnClosePopup := nil;
+    FPopup.IsOpen := False;
+  end;
+  FreeAndNil(FPresenter);
+  FreeAndNil(FPopup);
+  if FFactory <> nil then FFactory.RemoveFreeNotification(Self);
+  FFactory := nil;
+  FKeyHandlers.Free;
+  FKeyHandlers := nil;
+  FEnterHandlers.Free;
+  FEnterHandlers := nil;
+  FEngine := nil;
+  FLifetime := nil;
+  inherited;
+end;
+
+procedure TRibbonGroupPopupService.EnsureTree;
+begin
+  if FPopup <> nil then Exit;
+  if FFactory = nil then
+    raise EInvalidOperation.Create('The borrowed Ribbon view factory was destroyed.');
+  FreeAndNil(FPresenter);
+  FPopup := TRibbonInteractivePopup.Create(Self);
+  FPopup.StyleContext := FStyleContext;
+  FPopup.Stored := False;
+  FPopup.Placement := TPlacement.Absolute;
+  FPopup.CanFocus := True;
+  TComponent(FPopup).FreeNotification(Self);
+  FPopup.OnClosePopup := PopupClosed;
+  FFrame := TLayout.Create(FPopup);
+  FFrame.Parent := FPopup;
+  FFrame.Stored := False;
+  FFrame.Align := TAlignLayout.Client;
+  FTabHost := TLayout.Create(FPopup);
+  FTabHost.Parent := FFrame;
+  FTabHost.Stored := False;
+  FTabHost.Visible := False;
+  FScroll := TRibbonStyledScrollBox.Create(FPopup);
+  FScroll.Parent := FFrame;
+  FScroll.Stored := False;
+  FScroll.Align := TAlignLayout.Client;
+  FScroll.CanFocus := False;
+  FScroll.ClipChildren := True;
+  FContentHost := TLayout.Create(FPopup);
+  FContentHost.Parent := FScroll;
+  FContentHost.Stored := False;
+  FPresenter := TRibbonPresenter.Create(Self, FTabHost, FContentHost, FFactory);
+  FPresenter.OnInput := PresenterInput;
+  FPresenter.InputDensity := FInputDensity;
+  AttachRibbonInput(FScroll, FInputDensity);
+  ApplyMotionPolicy;
+  HookKeys(FPopup);
+end;
+
+procedure TRibbonGroupPopupService.SetStyleContext(const AValue: TRibbonStyleContext);
+begin
+  if FStyleContext = AValue then Exit;
+  if (AValue <> nil) and (csDestroying in AValue.ComponentState) then
+    raise EArgumentException.Create('Cannot use a destroying Ribbon style context.');
+  if FStyleContext <> nil then FStyleContext.RemoveFreeNotification(Self);
+  FStyleContext := AValue;
+  if FStyleContext <> nil then FStyleContext.FreeNotification(Self);
+  FStyleDirty := True;
+  if FPopup <> nil then FPopup.StyleContext := FStyleContext;
+  { Retain the presenter and every live item view. Native input callbacks
+    must unwind before a later Open invalidates and reapplies their styles. }
+  Close;
+end;
+
+function TRibbonGroupPopupService.PrepareStyles: Boolean;
+var
+  Token: IRibbonPopupLifetime;
+  Session, Revision: UInt64;
+  Context: TRibbonStyleContext;
+  PreviousBook: TStyleBook;
+begin
+  Result := False;
+  Token := FLifetime;
+  Session := Token.GetSession;
+  Context := FStyleContext;
+  Revision := 0;
+  if Context <> nil then Revision := Context.Revision;
+  PreviousBook := FPopup.StyleBook;
+  if not FPopup.PrepareStyleBook then Exit;
+  if not Token.IsAlive or (Token.GetSession <> Session) then Exit;
+  if (Context <> nil) and (Context.Revision <> Revision) then Exit;
+  if FStyleDirty or (FStyleRevision <> Revision) or
+     (PreviousBook <> FPopup.StyleBook) then
+  begin
+    FStyleDirty := True;
+    UnhookKeys;
+    if not ReapplyRibbonStyleTree(FPopup,
+      function: Boolean
+      begin
+        Result := Token.IsAlive and (Token.GetSession = Session);
+        if Result and (Context <> nil) then Result := Context.Revision = Revision;
+      end) then Exit;
+    FStyleRevision := Revision;
+    FStyleDirty := False;
+    HookKeys(FPopup);
+  end;
+  Result := True;
+end;
+
+procedure TRibbonGroupPopupService.ReleaseTargets;
+begin
+  if FAnchor <> nil then TComponent(FAnchor).RemoveFreeNotification(Self);
+  if FHost <> nil then TComponent(FHost).RemoveFreeNotification(Self);
+  FAnchor := nil;
+  FHost := nil;
+  if FLifetime <> nil then FLifetime.SetTargets(nil, nil);
+end;
+
+procedure TRibbonGroupPopupService.AttachTargets(AAnchor: TControl);
+var
+  Current: TFmxObject;
+begin
+  Current := AAnchor;
+  while (Current <> nil) and not (Current is TCommonCustomForm) do
+    Current := Current.Parent;
+  if not (Current is TCommonCustomForm) then
+    raise EArgumentException.Create('A group popup anchor must belong to an FMX form.');
+  ReleaseTargets;
+  FAnchor := AAnchor;
+  FHost := TCommonCustomForm(Current);
+  TComponent(FAnchor).FreeNotification(Self);
+  TComponent(FHost).FreeNotification(Self);
+  FLifetime.SetTargets(FAnchor, FHost);
+  { Parent assignment may enter native lifecycle callbacks; it is last. }
+  FPopup.Parent := FHost;
+end;
+
+procedure TRibbonGroupPopupService.Notification(AComponent: TComponent;
+  Operation: TOperation);
+var
+  LostTarget: Boolean;
+begin
+  inherited;
+  if Operation <> opRemove then Exit;
+  if AComponent is TControl then
+  begin
+    if FKeyHandlers <> nil then FKeyHandlers.Remove(TControl(AComponent));
+    if FEnterHandlers <> nil then FEnterHandlers.Remove(TControl(AComponent));
+  end;
+  LostTarget := False;
+  if AComponent = FStyleContext then
+  begin
+    FStyleContext := nil;
+    FStyleDirty := True;
+    LostTarget := True;
+  end;
+  if AComponent = FFactory then
+  begin
+    FFactory := nil;
+    LostTarget := True;
+  end;
+  if AComponent = FAnchor then
+  begin
+    FAnchor := nil;
+    LostTarget := True;
+  end;
+  if AComponent = FHost then
+  begin
+    FHost := nil;
+    LostTarget := True;
+  end;
+  if AComponent = FPopup then
+  begin
+    FPopup := nil;
+    FFrame := nil;
+    FTabHost := nil;
+    FContentHost := nil;
+    FScroll := nil;
+    LostTarget := True;
+  end;
+  if LostTarget and not FDestroying and (FLifetime <> nil) then
+  begin
+    FLifetime.SetTargets(FAnchor, FHost);
+    Close;
+  end;
+end;
+
+function TRibbonGroupPopupService.GetIsOpen: Boolean;
+begin
+  Result := (FPopup <> nil) and FPopup.IsOpen;
+end;
+
+function TRibbonGroupPopupService.GetIconProvider: IRibbonIconProvider;
+begin
+  if FFactory <> nil then Result := FFactory.IconProvider else Result := nil;
+end;
+
+procedure TRibbonGroupPopupService.SetIconProvider(const AValue: IRibbonIconProvider);
+begin
+  if FPresenter <> nil then FPresenter.IconProvider := AValue;
+end;
+
+procedure TRibbonGroupPopupService.SetReduceMotion(const AValue: Boolean);
+begin
+  FReduceMotion := AValue;
+  ApplyMotionPolicy;
+end;
+
+procedure TRibbonGroupPopupService.ApplyMotionPolicy;
+begin
+  if FScroll = nil then Exit;
+  { Only the owned scroll surface is changed. Caller StyleBook animations
+    remain under the application's control. The behavior flags keep a
+    later platform/style refresh from enabling inertial movement again. }
+  if FReduceMotion then
+  begin
+    FScroll.ScrollAnimation := TBehaviorBoolean.False;
+    FScroll.Bounces := TBehaviorBoolean.False;
+  end
+  else
+  begin
+    FScroll.ScrollAnimation := TBehaviorBoolean.PlatformDefault;
+    FScroll.Bounces := TBehaviorBoolean.PlatformDefault;
+  end;
+  FScroll.AniCalculations.Animation := not FReduceMotion;
+  FScroll.AniCalculations.BoundsAnimation := not FReduceMotion;
+end;
+
+procedure TRibbonGroupPopupService.SetInputDensity(const AValue: TRibbonInputDensity);
+begin
+  if (Ord(AValue) < Ord(Low(TRibbonInputDensity))) or
+     (Ord(AValue) > Ord(High(TRibbonInputDensity))) then
+    raise EArgumentOutOfRangeException.Create('Invalid Ribbon input density.');
+  if FInputDensity = AValue then Exit;
+  FInputDensity := AValue;
+  if FPresenter <> nil then FPresenter.InputDensity := AValue;
+  if FScroll <> nil then AttachRibbonInput(FScroll, AValue);
+  if IsOpen then Close;
+end;
+
+procedure TRibbonGroupPopupService.ApplySnapshot(const AGroup: TRibbonGroupViewData);
+var
+  Groups: TArray<TRibbonGroupViewData>;
+  Token: IRibbonPopupLifetime;
+  Session: UInt64;
+begin
+  Token := FLifetime;
+  Session := Token.GetSession;
+  Inc(FSyncing);
+  try
+    SetLength(Groups, 1);
+    Groups[0] := AGroup;
+    FPresenter.Sync(nil, Groups);
+    if not Token.IsAlive or (Token.GetSession <> Session) then Exit;
+    HookKeys(FPopup);
+    Arrange;
+  finally
+    if Token.IsAlive then Dec(FSyncing);
+  end;
+end;
+
+procedure TRibbonGroupPopupService.Arrange;
+var
+  Measures: TArray<TRibbonGroupMeasure>;
+  Plan: TRibbonLayoutResult;
+  Metrics: TRibbonLayoutMetrics;
+  Bounds: TRectF;
+  Token: IRibbonPopupLifetime;
+  Session: UInt64;
+begin
+  Token := FLifetime;
+  Session := Token.GetSession;
+  if not TargetsAvailable(Token) then Exit;
+  FViewport := TRibbonPopupViewport.Capture(FHost, FAnchor);
+  if not FViewport.HasArea then Exit;
+  Metrics := FPresenter.EffectiveMetrics(TRibbonLayoutMetrics.Default);
+  if not Token.IsAlive or (Token.GetSession <> Session) then Exit;
+  Measures := FPresenter.MeasureGroups;
+  if not Token.IsAlive or (Token.GetSession <> Session) then Exit;
+  Plan := FEngine.Calculate(Measures, FViewport.Size.Width, Metrics);
+  Bounds := RibbonPopupScreenBounds(FViewport,
+    TSizeF.Create(Plan.ContentWidth, Plan.ContentHeight), Metrics.MinimumItemHeight);
+  ApplyRibbonPopupBounds(FPopup, Bounds);
+  if not Token.IsAlive or (Token.GetSession <> Session) then Exit;
+  FContentHost.SetBounds(0, 0, Max(Bounds.Width, Plan.ContentWidth),
+    Max(Bounds.Height, Plan.ContentHeight));
+  if not Token.IsAlive or (Token.GetSession <> Session) then Exit;
+  FPresenter.ApplyLayout(Plan);
+end;
+
+procedure TRibbonGroupPopupService.Open(AAnchor: TControl;
+  const AGroup: TRibbonGroupViewData; ADensity: TRibbonInputDensity);
+var
+  Guard: TGroupAnchorGuard;
+  Token: IRibbonPopupLifetime;
+  Session: UInt64;
+  First: TControl;
+begin
+  if AGroup.Id = '' then
+    raise EArgumentException.Create('A group popup needs a nonempty group Id.');
+  Guard := TGroupAnchorGuard.CreateAnchor(AAnchor);
+  Token := FLifetime;
+  try
+    Session := Token.GetSession;
+    if Session = High(UInt64) then Session := 1 else Inc(Session);
+    Close;
+    if not Token.IsAlive or (Token.GetSession <> Session) or
+       (Guard.Anchor = nil) then Exit;
+    if not AGroup.Visible or not AGroup.Enabled or (FFactory = nil) then Exit;
+    Token.Advance;
+    Session := Token.GetSession;
+    EnsureTree;
+    AttachTargets(Guard.Anchor);
+    if not Token.IsAlive or (Token.GetSession <> Session) then Exit;
+    if not TargetsAvailable(Token) then Exit;
+    if not PrepareStyles then Exit;
+    if not Token.IsAlive or (Token.GetSession <> Session) then Exit;
+    FGroupId := AGroup.Id;
+    SetInputDensity(ADensity);
+    FPresenter.InvalidateMeasurements;
+    ApplySnapshot(AGroup);
+    if not Token.IsAlive or (Token.GetSession <> Session) then Exit;
+    if (FStyleContext <> nil) and (FStyleContext.Revision <> FStyleRevision) then
+    begin
+      FStyleDirty := True;
+      Close;
+      Exit;
+    end;
+    if not TargetsAvailable(Token) or not FViewport.HasArea then Exit;
+    FWatch.Enabled := True;
+    FPopup.IsOpen := True;
+    if not Token.IsAlive or (Token.GetSession <> Session) then Exit;
+    if not IsOpen then Exit;
+    FPopup.ApplyStyleLookup;
+    if not Token.IsAlive or (Token.GetSession <> Session) then Exit;
+    if not IsOpen then Exit;
+    First := FPresenter.FirstFocusableItem(FGroupId);
+    { Focus handlers may destroy the service; do not access Self afterwards. }
+    if First <> nil then First.SetFocus else FPopup.SetFocus;
+  finally
+    Guard.Free;
+  end;
+end;
+
+procedure TRibbonGroupPopupService.Sync(const AGroup: TRibbonGroupViewData);
+begin
+  if not IsOpen then Exit;
+  if FStyleDirty or ((FStyleContext <> nil) and
+     (FStyleContext.Revision <> FStyleRevision)) then
+  begin
+    FStyleDirty := True;
+    Close;
+    Exit;
+  end;
+  if (AGroup.Id <> FGroupId) or not AGroup.Visible or not AGroup.Enabled then
+  begin
+    Close;
+    Exit;
+  end;
+  ApplySnapshot(AGroup);
+end;
+
+procedure TRibbonGroupPopupService.PresenterInput(Sender: TObject;
+  const AInput: TRibbonItemInput);
+var
+  Handler: TRibbonItemInputEvent;
+  EventData: TRibbonItemInput;
+begin
+  if FDestroying or (FSyncing <> 0) or not IsOpen or
+     not TargetsAvailable(FLifetime) then Exit;
+  EventData := AInput;
+  Handler := FOnInput;
+  if Assigned(Handler) then Handler(Self, EventData);
+  { No service, presenter, sender or view access after the external callback. }
+end;
+
+procedure TRibbonGroupPopupService.PopupClosed(Sender: TObject);
+begin
+  if FDestroying then Exit;
+  FWatch.Enabled := False;
+  { Outside dismissal preserves the newly selected focus target. Keep the
+    control tree until a later Open/Sync or destruction has a safe context. }
+end;
+
+procedure TRibbonGroupPopupService.Close;
+begin
+  ClosePopup(False);
+end;
+
+procedure TRibbonGroupPopupService.CloseWithFocusReturn;
+begin
+  ClosePopup(True);
+end;
+
+procedure TRibbonGroupPopupService.ClosePopup(ARestoreFocus: Boolean);
+var
+  Token: IRibbonPopupLifetime;
+  Session: UInt64;
+begin
+  Token := FLifetime;
+  if Token = nil then Exit;
+  Token.Advance;
+  Session := Token.GetSession;
+  if FWatch <> nil then FWatch.Enabled := False;
+  if FPopup <> nil then FPopup.IsOpen := False;
+  if not Token.IsAlive or (Token.GetSession <> Session) then Exit;
+  if ARestoreFocus then QueueFocusReturn;
+end;
+
+procedure TRibbonGroupPopupService.QueueFocusReturn;
+var
+  Token: IRibbonPopupLifetime;
+  Session: UInt64;
+  ExpectedFocus: Pointer;
+begin
+  Token := FLifetime;
+  Session := Token.GetSession;
+  ExpectedFocus := FocusIdentity(Token.GetHost);
+  TThread.ForceQueue(nil,
+    procedure
+    var
+      Anchor: TControl;
+      Host: TCommonCustomForm;
+    begin
+      if not Token.IsAlive or (Token.GetSession <> Session) or
+         not TargetsAvailable(Token) then Exit;
+      Anchor := Token.GetAnchor;
+      Host := Token.GetHost;
+      if Host.Active and (FocusIdentity(Host) = ExpectedFocus) and
+         Anchor.CanFocus then Anchor.SetFocus;
+      { The focus callback is final; the detached token owns no visual/model. }
+    end);
+end;
+
+procedure TRibbonGroupPopupService.CheckHostGeometry;
+var
+  Current: TRibbonPopupViewport;
+begin
+  if not IsOpen then Exit;
+  if FStyleDirty or ((FStyleContext <> nil) and
+     (FStyleContext.Revision <> FStyleRevision)) then
+  begin
+    FStyleDirty := True;
+    Close;
+    Exit;
+  end;
+  if not TargetsAvailable(FLifetime) then
+  begin
+    Close;
+    Exit;
+  end;
+  Current := TRibbonPopupViewport.Capture(FHost, FAnchor);
+  if not Current.SameGeometry(FViewport) then Close;
+end;
+
+procedure TRibbonGroupPopupService.HostPulse(Sender: TObject);
+begin
+  if not IsOpen then
+  begin
+    FWatch.Enabled := False;
+    Exit;
+  end;
+  CheckHostGeometry;
+end;
+
+procedure TRibbonGroupPopupService.HookKeys(AObject: TFmxObject);
+var
+  Control: TControl;
+  Child: TFmxObject;
+begin
+  if AObject = nil then Exit;
+  if AObject is TControl then
+  begin
+    Control := TControl(AObject);
+    if not FKeyHandlers.ContainsKey(Control) then
+    begin
+      FKeyHandlers.Add(Control, TGroupControlAccess(Control).OnKeyDown);
+      FEnterHandlers.Add(Control, TGroupControlAccess(Control).OnEnter);
+      TComponent(Control).FreeNotification(Self);
+      TGroupControlAccess(Control).OnKeyDown := ControlKeyDown;
+      TGroupControlAccess(Control).OnEnter := ControlEntered;
+    end;
+  end;
+  if AObject.Children <> nil then
+    for Child in AObject.Children do HookKeys(Child);
+end;
+
+procedure TRibbonGroupPopupService.UnhookKeys;
+var
+  Control: TControl;
+  Current, Ours, Previous: TKeyEvent;
+  CurrentEnter, OurEnter, PreviousEnter: TNotifyEvent;
+begin
+  if FKeyHandlers = nil then Exit;
+  Ours := ControlKeyDown;
+  OurEnter := ControlEntered;
+  for Control in FKeyHandlers.Keys.ToArray do
+  begin
+    Previous := FKeyHandlers[Control];
+    Current := TGroupControlAccess(Control).OnKeyDown;
+    if (TMethod(Current).Code = TMethod(Ours).Code) and
+       (TMethod(Current).Data = TMethod(Ours).Data) then
+      TGroupControlAccess(Control).OnKeyDown := Previous;
+    if FEnterHandlers.TryGetValue(Control, PreviousEnter) then
+    begin
+      CurrentEnter := TGroupControlAccess(Control).OnEnter;
+      if (TMethod(CurrentEnter).Code = TMethod(OurEnter).Code) and
+         (TMethod(CurrentEnter).Data = TMethod(OurEnter).Data) then
+        TGroupControlAccess(Control).OnEnter := PreviousEnter;
+    end;
+    TComponent(Control).RemoveFreeNotification(Self);
+  end;
+  FKeyHandlers.Clear;
+  FEnterHandlers.Clear;
+end;
+
+procedure TRibbonGroupPopupService.ControlEntered(Sender: TObject);
+var
+  Control: TControl;
+  Previous: TNotifyEvent;
+  TopLeft, BottomRight, Viewport: TPointF;
+  ViewWidth, ViewHeight: Single;
+begin
+  Previous := nil;
+  if Sender is TControl then
+  begin
+    Control := TControl(Sender);
+    FEnterHandlers.TryGetValue(Control, Previous);
+    if IsOpen and (FScroll <> nil) and (FContentHost <> nil) and
+       (Control <> FPopup) and not RibbonPointerIsDown(Control) then
+    begin
+      TopLeft := FContentHost.AbsoluteToLocal(Control.LocalToAbsolute(PointF(0, 0)));
+      BottomRight := FContentHost.AbsoluteToLocal(
+        Control.LocalToAbsolute(PointF(Control.Width, Control.Height)));
+      ViewWidth := Max(0, FScroll.Width - FScroll.Padding.Left - FScroll.Padding.Right);
+      ViewHeight := Max(0, FScroll.Height - FScroll.Padding.Top - FScroll.Padding.Bottom);
+      Viewport := FScroll.ViewportPosition;
+      if TopLeft.X < Viewport.X then Viewport.X := TopLeft.X
+      else if BottomRight.X > Viewport.X + ViewWidth then
+        Viewport.X := Min(TopLeft.X, BottomRight.X - ViewWidth);
+      if TopLeft.Y < Viewport.Y then Viewport.Y := TopLeft.Y
+      else if BottomRight.Y > Viewport.Y + ViewHeight then
+        Viewport.Y := Min(TopLeft.Y, BottomRight.Y - ViewHeight);
+      Viewport.X := Max(0, Min(Max(0, FContentHost.Width - ViewWidth), Viewport.X));
+      Viewport.Y := Max(0, Min(Max(0, FContentHost.Height - ViewHeight), Viewport.Y));
+      FScroll.ViewportPosition := Viewport;
+    end;
+  end;
+  if Assigned(Previous) then Previous(Sender);
+  { The chained focus callback may destroy the service; no Self access follows. }
+end;
+
+procedure TRibbonGroupPopupService.ControlKeyDown(Sender: TObject;
+  var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
+var
+  Previous: TKeyEvent;
+begin
+  if Sender is TControl then RibbonKeyboardInput(TControl(Sender));
+  if IsOpen and ((Key = vkEscape) or (Key = vkHardwareBack)) then
+  begin
+    Key := 0;
+    KeyChar := #0;
+    CloseWithFocusReturn;
+    Exit;
+  end;
+  Previous := nil;
+  if Sender is TControl then
+    FKeyHandlers.TryGetValue(TControl(Sender), Previous);
+  if Assigned(Previous) then Previous(Sender, Key, KeyChar, Shift);
+  { A previously installed handler may release the service; it is final. }
+end;
+
+function TRibbonGroupPopupService.FindItemView(const AId: string): TControl;
+begin
+  Result := nil;
+  if FPresenter <> nil then Result := FPresenter.FindItemView(AId);
+end;
+
+end.

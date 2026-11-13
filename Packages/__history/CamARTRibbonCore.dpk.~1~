@@ -1,0 +1,23 @@
+﻿package CamARTRibbonCore;
+
+{$IFNDEF VER370}
+  {$MESSAGE FATAL 'This installation package requires the Delphi 13 compiler family (VER370). Use Delphi 13.2.'}
+{$ENDIF}
+{$LIBSUFFIX '370'}
+
+{$DESCRIPTION 'CamART Ribbon: pure RTL model and services'}
+{$RUNONLY}
+{$IMPLICITBUILD ON}
+
+requires
+  rtl;
+
+contains
+  CamART.Ribbon.Commands in '..\Source\Core\CamART.Ribbon.Commands.pas',
+  CamART.Ribbon.Layout in '..\Source\Core\CamART.Ribbon.Layout.pas',
+  CamART.Ribbon.Model in '..\Source\Core\CamART.Ribbon.Model.pas',
+  CamART.Ribbon.References in '..\Source\Core\CamART.Ribbon.References.pas',
+  CamART.Ribbon.State in '..\Source\Core\CamART.Ribbon.State.pas',
+  CamART.Ribbon.Types in '..\Source\Core\CamART.Ribbon.Types.pas';
+
+end.

@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Delphi 13.2 distribution preserving the existing compatible project schema; native IDE/MSBuild acceptance pending. ProjectGuid is a local project identity, not an SDK/target identifier. -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{3A086940-83C3-4048-9CC0-175924C6DAAA}</ProjectGuid>
+    <ProjectVersion>20.1</ProjectVersion>
+    <FrameworkType>FMX</FrameworkType>
+    <AppType>Application</AppType>
+    <MainSource>RibbonJsonDemo.dpr</MainSource>
+    <Base>True</Base>
+    <Config Condition="'$(Config)'==''">Debug</Config>
+    <Platform Condition="'$(Platform)'==''">Win64</Platform>
+    <ProjectName Condition="'$(ProjectName)'==''">RibbonJsonDemo</ProjectName>
+    <TargetedPlatforms>3</TargetedPlatforms>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Base)'=='true') or '$(Base_Win32)'!=''">
+    <Base_Win32>true</Base_Win32>
+    <CfgParent>Base</CfgParent>
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Base)'=='true') or '$(Base_Win64)'!=''">
+    <Base_Win64>true</Base_Win64>
+    <CfgParent>Base</CfgParent>
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_1)'!=''">
+    <Cfg_1>true</Cfg_1>
+    <CfgParent>Base</CfgParent>
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_1)'=='true') or '$(Cfg_1_Win32)'!=''">
+    <Cfg_1_Win32>true</Cfg_1_Win32>
+    <CfgParent>Cfg_1</CfgParent>
+    <Cfg_1>true</Cfg_1>
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_1)'=='true') or '$(Cfg_1_Win64)'!=''">
+    <Cfg_1_Win64>true</Cfg_1_Win64>
+    <CfgParent>Cfg_1</CfgParent>
+    <Cfg_1>true</Cfg_1>
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Config)'=='Release' or '$(Cfg_2)'!=''">
+    <Cfg_2>true</Cfg_2>
+    <CfgParent>Base</CfgParent>
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win32)'!=''">
+    <Cfg_2_Win32>true</Cfg_2_Win32>
+    <CfgParent>Cfg_2</CfgParent>
+    <Cfg_2>true</Cfg_2>
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win64)'!=''">
+    <Cfg_2_Win64>true</Cfg_2_Win64>
+    <CfgParent>Cfg_2</CfgParent>
+    <Cfg_2>true</Cfg_2>
+    <Base>true</Base>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Base)'!=''">
+    <DCC_Namespace>System;FMX;$(DCC_Namespace)</DCC_Namespace>
+    <DCC_UnitSearchPath>.;..\..\Source\Core;..\..\Source\FMX;..\..\Source\Serialization;..;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+    <DCC_DcuOutput>..\..\Build\Delphi13.2\$(Platform)\$(Config)\RibbonJsonDemo\DCU</DCC_DcuOutput>
+    <DCC_ExeOutput>..\..\Build\Delphi13.2\$(Platform)\$(Config)\RibbonJsonDemo</DCC_ExeOutput>
+    <DCC_UsePackage />
+    <VerInfo_IncludeVerInfo>false</VerInfo_IncludeVerInfo>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Cfg_1)'!=''">
+    <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
+    <DCC_DebugInformation>2</DCC_DebugInformation>
+    <DCC_LocalDebugSymbols>true</DCC_LocalDebugSymbols>
+    <DCC_Optimize>false</DCC_Optimize>
+    <DCC_RangeChecking>true</DCC_RangeChecking>
+    <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
+    <DCC_AssertionsAtRuntime>true</DCC_AssertionsAtRuntime>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Cfg_2)'!=''">
+    <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
+    <DCC_DebugInformation>0</DCC_DebugInformation>
+    <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
+    <DCC_Optimize>true</DCC_Optimize>
+    <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <DelphiCompile Include="$(MainSource)">
+      <MainSource>MainSource</MainSource>
+    </DelphiCompile>
+    <BuildConfiguration Include="Base">
+      <Key>Base</Key>
+    </BuildConfiguration>
+    <BuildConfiguration Include="Debug">
+      <Key>Cfg_1</Key>
+      <CfgParent>Base</CfgParent>
+    </BuildConfiguration>
+    <BuildConfiguration Include="Release">
+      <Key>Cfg_2</Key>
+      <CfgParent>Base</CfgParent>
+    </BuildConfiguration>
+    <DCCReference Include="..\CamART.Ribbon.DemoIcons.pas" />
+    <DCCReference Include="CamART.Ribbon.JsonDemo.pas" />
+    <DCCReference Include="..\..\Source\Core\CamART.Ribbon.Commands.pas" />
+    <DCCReference Include="..\..\Source\Core\CamART.Ribbon.Layout.pas" />
+    <DCCReference Include="..\..\Source\Core\CamART.Ribbon.Model.pas" />
+    <DCCReference Include="..\..\Source\Core\CamART.Ribbon.References.pas" />
+    <DCCReference Include="..\..\Source\Core\CamART.Ribbon.State.pas" />
+    <DCCReference Include="..\..\Source\Core\CamART.Ribbon.Types.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.Actions.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.Auxiliary.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.Bindings.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.Control.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.Fonts.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.GroupPopup.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.Icons.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.Interaction.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.ItemViews.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.PopupGeometry.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.Popups.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.Presenter.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.ReferenceBindings.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.Style.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.StyleContext.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.StyleScope.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.StyledControls.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.ThemeStyles.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.Themes.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.ViewData.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.ViewFactory.pas" />
+    <DCCReference Include="..\..\Source\FMX\CamART.Ribbon.Views.pas" />
+    <DCCReference Include="..\..\Source\Serialization\CamART.Ribbon.Json.FMX.pas" />
+    <DCCReference Include="..\..\Source\Serialization\CamART.Ribbon.Json.pas" />
+  </ItemGroup>
+  <ProjectExtensions>
+    <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+    <Borland.ProjectType>Application</Borland.ProjectType>
+    <BorlandProject>
+      <Delphi.Personality>
+        <Source>
+          <Source Name="MainSource">RibbonJsonDemo.dpr</Source>
+        </Source>
+      </Delphi.Personality>
+      <Platforms>
+        <Platform value="Win32">True</Platform>
+        <Platform value="Win64">True</Platform>
+      </Platforms>
+    </BorlandProject>
+    <ProjectFileVersion>12</ProjectFileVersion>
+  </ProjectExtensions>
+  <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" />
+  <Import Project="..\..\Build\Skia.Windows.targets"/>
+</Project>

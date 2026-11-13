@@ -1,0 +1,23 @@
+﻿package CamARTRibbonJSONFMX;
+
+{$LIBSUFFIX '370'}
+
+{$DESCRIPTION 'CamART Ribbon: optional JSON to FMX adapter'}
+{$RUNONLY}
+{$IMPLICITBUILD ON}
+
+{$IFNDEF VER370}
+  {$MESSAGE FATAL 'This installation package requires Delphi 13 (VER370), including Delphi 13.1.'}
+{$ENDIF}
+
+requires
+  rtl,
+  fmx,
+  CamARTRibbonCore,
+  CamARTRibbonFMX,
+  CamARTRibbonJSON;
+
+contains
+  CamART.Ribbon.Json.FMX in '..\Source\Serialization\CamART.Ribbon.Json.FMX.pas';
+
+end.

@@ -1,0 +1,50 @@
+﻿package CamARTRibbonDesign;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS OFF}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO OFF}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE RELEASE}
+{$ENDIF IMPLICITBUILDING}
+{$LIBSUFFIX '370'}
+{$DESIGNONLY}
+{$IMPLICITBUILD ON}
+{$DESCRIPTION 'CamART Ribbon: FireMonkey IDE component and property editors'}
+
+{$IFNDEF VER370}
+  {$MESSAGE FATAL 'This installation package requires Delphi 13 (VER370), including Delphi 13.1.'}
+{$ENDIF}
+
+requires
+  rtl,
+  fmx,
+  designide,
+  CamARTRibbonCore,
+  CamARTRibbonFMX;
+
+contains
+  CamART.Ribbon.DesignModel in '..\Design\CamART.Ribbon.DesignModel.pas',
+  CamART.Ribbon.Editors in '..\Design\CamART.Ribbon.Editors.pas',
+  CamART.Ribbon.Register in '..\Design\CamART.Ribbon.Register.pas',
+  CamART.Ribbon.TreeEditor in '..\Design\CamART.Ribbon.TreeEditor.pas';
+
+end.

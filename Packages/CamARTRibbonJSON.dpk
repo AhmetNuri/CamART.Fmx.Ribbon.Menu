@@ -1,0 +1,20 @@
+﻿package CamARTRibbonJSON;
+
+{$LIBSUFFIX '370'}
+
+{$DESCRIPTION 'CamART Ribbon: optional RTL JSON codec'}
+{$RUNONLY}
+{$IMPLICITBUILD ON}
+
+{$IFNDEF VER370}
+  {$MESSAGE FATAL 'This installation package requires Delphi 13 (VER370), including Delphi 13.1.'}
+{$ENDIF}
+
+requires
+  rtl,
+  CamARTRibbonCore;
+
+contains
+  CamART.Ribbon.Json in '..\Source\Serialization\CamART.Ribbon.Json.pas';
+
+end.

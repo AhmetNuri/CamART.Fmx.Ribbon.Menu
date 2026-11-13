@@ -1,0 +1,25 @@
+﻿package CamARTRibbonDesign;
+
+{$IFNDEF VER370}
+  {$MESSAGE FATAL 'This installation package requires the Delphi 13 compiler family (VER370). Use Delphi 13.2.'}
+{$ENDIF}
+{$LIBSUFFIX '370'}
+
+{$DESCRIPTION 'CamART Ribbon: FireMonkey IDE component and property editors'}
+{$DESIGNONLY}
+{$IMPLICITBUILD ON}
+
+requires
+  rtl,
+  fmx,
+  designide,
+  CamARTRibbonCore,
+  CamARTRibbonFMX;
+
+contains
+  CamART.Ribbon.DesignModel in '..\Design\CamART.Ribbon.DesignModel.pas',
+  CamART.Ribbon.Editors in '..\Design\CamART.Ribbon.Editors.pas',
+  CamART.Ribbon.Register in '..\Design\CamART.Ribbon.Register.pas',
+  CamART.Ribbon.TreeEditor in '..\Design\CamART.Ribbon.TreeEditor.pas';
+
+end.

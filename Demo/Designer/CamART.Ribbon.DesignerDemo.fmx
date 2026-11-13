@@ -1,0 +1,165 @@
+﻿object RibbonDesignerDemoForm: TRibbonDesignerDemoForm
+  Caption = 'CamART Ribbon - Object Inspector example'
+  ClientHeight = 520
+  ClientWidth = 1100
+  StyleBook = FormBook
+  OnCreate = FormCreate
+  object FormBook: TStyleBook
+  end
+  object RibbonBook: TStyleBook
+  end
+  object Ribbon1: TCamARTRibbon
+    Align = Top
+    Size.Width = 1100.000000000000000000
+    Size.Height = 196.000000000000000000
+    Size.PlatformDefault = False
+    Theme = rtModernLight
+    StyleBook = RibbonBook
+    ActiveTabId = 'tab.home'
+    ExpandedHeight = 196.000000000000000000
+    ApplicationCaption = 'File'
+    QuickAccess = <
+      item
+        Id = 'qat.paste'
+        ItemId = 'item.paste'
+      end
+      item
+        Id = 'qat.copy'
+        ItemId = 'item.copy'
+      end>
+    ApplicationMenu = <
+      item
+        Id = 'menu.copy'
+        ItemId = 'item.copy'
+      end>
+    object HomeTab: TRibbonTab
+      Id = 'tab.home'
+      Caption = 'Home'
+      object ClipboardGroup: TRibbonGroup
+        Id = 'group.clipboard'
+        Caption = 'Clipboard'
+        MinWidth = 120.000000000000000000
+        PreferredWidth = 220.000000000000000000
+        object PasteItem: TRibbonButton
+          Id = 'item.paste'
+          Caption = 'Paste'
+          OnClick = PasteClick
+        end
+        object CopyItem: TRibbonButton
+          Id = 'item.copy'
+          Caption = 'Copy'
+          Order = 1
+          ButtonStyle = rbsSmall
+          CommandId = 'edit.copy'
+        end
+        object MoreItem: TRibbonDropDownMenu
+          Id = 'item.more'
+          Caption = 'More'
+          Order = 2
+          ButtonStyle = rbsSmall
+          MenuItems = <
+            item
+              Id = 'more.copy'
+              ItemId = 'item.copy'
+            end>
+        end
+      end
+      object EditingGroup: TRibbonGroup
+        Id = 'group.editing'
+        Caption = 'Editing'
+        Order = 1
+        MinWidth = 160.000000000000000000
+        PreferredWidth = 240.000000000000000000
+        object FindItem: TRibbonEdit
+          Id = 'item.find'
+          Caption = 'Find'
+          Text = 'Unicode: I'#305' '#350' '#20013
+        end
+        object ModeItem: TRibbonComboBox
+          Id = 'item.mode'
+          Caption = 'Mode'
+          Order = 1
+          Items.Strings = (
+            'Normal'
+            'Preview')
+          ItemIndex = 0
+        end
+        object BoldItem: TRibbonCheckBox
+          Id = 'item.bold'
+          Caption = 'Bold'
+          Order = 2
+          OnChange = FormatChanged
+        end
+      end
+      object StylesGroup: TRibbonGroup
+        Id = 'group.styles'
+        Caption = 'Styles'
+        Order = 2
+        MinWidth = 160.000000000000000000
+        PreferredWidth = 260.000000000000000000
+        object StylesGallery: TRibbonGallery
+          Id = 'item.styles'
+          Caption = 'Styles'
+          Entries = <
+            item
+              Id = 'style.normal'
+              Caption = 'Normal'
+            end
+            item
+              Id = 'style.title'
+              Caption = 'Title'
+            end>
+          SelectedId = 'style.normal'
+        end
+        object ProgressItem: TRibbonProgressBar
+          Id = 'item.progress'
+          Caption = 'Progress'
+          Order = 1
+          Min = 0.000000000000000000
+          Max = 100.000000000000000000
+          Value = 35.000000000000000000
+        end
+      end
+    end
+    object ReviewTab: TRibbonTab
+      Id = 'tab.review'
+      Caption = 'Review'
+      Order = 1
+      object ReviewGroup: TRibbonGroup
+        Id = 'group.review'
+        Caption = 'Review'
+        object ReviewLabel: TRibbonLabel
+          Id = 'item.review'
+          Caption = 'Created and persisted by the designer'
+        end
+      end
+    end
+  end
+  object StatusLabel: TLabel
+    Position.X = 24.000000000000000000
+    Position.Y = 250.000000000000000000
+    Size.Width = 1000.000000000000000000
+    Size.Height = 100.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Run the form after editing the nested Ribbon in the IDE.'
+    WordWrap = True
+  end
+  object InheritStyleButton: TButton
+    Position.X = 24.000000000000000000
+    Position.Y = 370.000000000000000000
+    Size.Width = 250.000000000000000000
+    Size.Height = 40.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Use form StyleBook'
+    OnClick = InheritStyleClick
+  end
+  object OwnStyleButton: TButton
+    Position.X = 290.000000000000000000
+    Position.Y = 370.000000000000000000
+    Size.Width = 250.000000000000000000
+    Size.Height = 40.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Use Ribbon StyleBook'
+    OnClick = OwnStyleClick
+  end
+end

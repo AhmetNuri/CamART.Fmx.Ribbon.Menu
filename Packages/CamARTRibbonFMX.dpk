@@ -1,0 +1,44 @@
+﻿package CamARTRibbonFMX;
+
+{$LIBSUFFIX '370'}
+
+{$DESCRIPTION 'CamART Ribbon: FireMonkey runtime controls'}
+{$RUNONLY}
+{$IMPLICITBUILD ON}
+
+{$IFNDEF VER370}
+  {$MESSAGE FATAL 'This installation package requires Delphi 13 (VER370), including Delphi 13.1.'}
+{$ENDIF}
+
+requires
+  rtl,
+  fmx,
+  Skia.Package.RTL,
+  Skia.Package.FMX,
+  CamARTRibbonCore;
+
+contains
+  CamART.Ribbon.Actions in '..\Source\FMX\CamART.Ribbon.Actions.pas',
+  CamART.Ribbon.Auxiliary in '..\Source\FMX\CamART.Ribbon.Auxiliary.pas',
+  CamART.Ribbon.Bindings in '..\Source\FMX\CamART.Ribbon.Bindings.pas',
+  CamART.Ribbon.Control in '..\Source\FMX\CamART.Ribbon.Control.pas',
+  CamART.Ribbon.Fonts in '..\Source\FMX\CamART.Ribbon.Fonts.pas',
+  CamART.Ribbon.GroupPopup in '..\Source\FMX\CamART.Ribbon.GroupPopup.pas',
+  CamART.Ribbon.Icons in '..\Source\FMX\CamART.Ribbon.Icons.pas',
+  CamART.Ribbon.Interaction in '..\Source\FMX\CamART.Ribbon.Interaction.pas',
+  CamART.Ribbon.ItemViews in '..\Source\FMX\CamART.Ribbon.ItemViews.pas',
+  CamART.Ribbon.PopupGeometry in '..\Source\FMX\CamART.Ribbon.PopupGeometry.pas',
+  CamART.Ribbon.Popups in '..\Source\FMX\CamART.Ribbon.Popups.pas',
+  CamART.Ribbon.Presenter in '..\Source\FMX\CamART.Ribbon.Presenter.pas',
+  CamART.Ribbon.ReferenceBindings in '..\Source\FMX\CamART.Ribbon.ReferenceBindings.pas',
+  CamART.Ribbon.Style in '..\Source\FMX\CamART.Ribbon.Style.pas',
+  CamART.Ribbon.StyleContext in '..\Source\FMX\CamART.Ribbon.StyleContext.pas',
+  CamART.Ribbon.StyleScope in '..\Source\FMX\CamART.Ribbon.StyleScope.pas',
+  CamART.Ribbon.StyledControls in '..\Source\FMX\CamART.Ribbon.StyledControls.pas',
+  CamART.Ribbon.ThemeStyles in '..\Source\FMX\CamART.Ribbon.ThemeStyles.pas',
+  CamART.Ribbon.Themes in '..\Source\FMX\CamART.Ribbon.Themes.pas',
+  CamART.Ribbon.ViewData in '..\Source\FMX\CamART.Ribbon.ViewData.pas',
+  CamART.Ribbon.ViewFactory in '..\Source\FMX\CamART.Ribbon.ViewFactory.pas',
+  CamART.Ribbon.Views in '..\Source\FMX\CamART.Ribbon.Views.pas';
+
+end.

@@ -1,0 +1,27 @@
+{
+  "theme": "Silver",
+  "tabs": [
+    {
+      "name": "Home",
+      "groups": [
+        {
+          "name": "Clipboard",
+          "buttons": [
+            {
+              "name": "Paste",
+              "style": "Large",
+              "command": "paste",
+              "icon": "paste"
+            },
+            {
+              "name": "Copy",
+              "style": "Small",
+              "command": "copy",
+              "icon": "copy"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
