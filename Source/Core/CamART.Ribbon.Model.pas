@@ -24,6 +24,7 @@ type
   TRibbonButton = class;
   TRibbonSeparator = class;
   TRibbonLabel = class;
+  TRibbonSkLabel = class;
   TRibbonEdit = class;
   TRibbonComboBox = class;
   TRibbonColorPicker = class;
@@ -136,6 +137,8 @@ type
     function AddButton(const ACaption: string): TRibbonButton;
     function AddSeparator(const ACaption: string = ''): TRibbonSeparator;
     function AddLabel(const ACaption: string = ''): TRibbonLabel;
+    function AddSkLabel(const ACaption: string = '';
+      const ATemplateKey: string = ''): TRibbonSkLabel;
     function AddEdit(const ACaption: string = ''): TRibbonEdit;
     function AddComboBox(const ACaption: string = ''): TRibbonComboBox;
     function AddColorPicker(const ACaption: string = ''): TRibbonColorPicker;
@@ -230,6 +233,19 @@ type
   TRibbonLabel = class(TRibbonItem)
   protected
     function GetTypeKey: string; override;
+  end;
+
+  { Presentation-neutral rich label. TemplateKey names an application-side
+    text template (the FMX layer resolves it to a Skia TSkLabel snapshot).
+    Core stores only the key; no Skia/FMX dependency enters this package. }
+  TRibbonSkLabel = class(TRibbonItem)
+  private
+    FTemplateKey: string;
+    procedure SetTemplateKey(const AValue: string);
+  protected
+    function GetTypeKey: string; override;
+  published
+    property TemplateKey: string read FTemplateKey write SetTemplateKey;
   end;
 
   TRibbonEdit = class(TRibbonItem)
@@ -1104,6 +1120,12 @@ begin
   Result := TRibbonLabel(AddItem(TRibbonLabel, ACaption));
 end;
 
+function TRibbonGroup.AddSkLabel(const ACaption, ATemplateKey: string): TRibbonSkLabel;
+begin
+  Result := TRibbonSkLabel(AddItem(TRibbonSkLabel, ACaption));
+  if ATemplateKey <> '' then Result.TemplateKey := ATemplateKey;
+end;
+
 function TRibbonGroup.AddEdit(const ACaption: string): TRibbonEdit;
 begin
   Result := TRibbonEdit(AddItem(TRibbonEdit, ACaption));
@@ -1395,6 +1417,19 @@ end;
 function TRibbonLabel.GetTypeKey: string;
 begin
   Result := 'label';
+end;
+
+function TRibbonSkLabel.GetTypeKey: string;
+begin
+  Result := 'sklabel';
+end;
+
+procedure TRibbonSkLabel.SetTemplateKey(const AValue: string);
+begin
+  RequireMutable;
+  if FTemplateKey = AValue then Exit;
+  FTemplateKey := AValue;
+  Changed([rckMeasure, rckPaint]);
 end;
 
 function TRibbonEdit.GetTypeKey: string;
@@ -2629,9 +2664,11 @@ initialization
   RegisterClasses([TRibbonTab, TRibbonGroup, TRibbonButton, TRibbonSeparator,
     TRibbonLabel, TRibbonEdit, TRibbonComboBox, TRibbonColorPicker,
     TRibbonFontPicker, TRibbonFontSizePicker, TRibbonGallery, TRibbonCheckBox,
-    TRibbonRadioButton, TRibbonProgressBar, TRibbonDropDownMenu]);
+    TRibbonRadioButton, TRibbonProgressBar, TRibbonDropDownMenu,
+    TRibbonSkLabel]);
 
 finalization
+  UnRegisterClass(TRibbonSkLabel);
   UnRegisterClass(TRibbonDropDownMenu);
   UnRegisterClass(TRibbonProgressBar);
   UnRegisterClass(TRibbonRadioButton);

@@ -32,6 +32,8 @@ type
     Minimum, Maximum, Value: Single;
     GalleryEntries: TArray<TRibbonGalleryEntryViewData>;
     SelectedId: string;
+    { Optional presentation template key (sklabel). Empty for other kinds. }
+    TemplateKey: string;
   end;
 
   TRibbonGroupViewData = record

@@ -8,7 +8,8 @@ uses
   FMX.Controls,
   CamART.Ribbon.ViewData,
   CamART.Ribbon.ItemViews,
-  CamART.Ribbon.Icons;
+  CamART.Ribbon.Icons,
+  CamART.Ribbon.SkLabels;
 
 type
   { Registry is the extension seam. The presenter does not switch on model
@@ -17,6 +18,7 @@ type
   private
     FClasses: TDictionary<string, TRibbonItemViewClass>;
     FIconProvider: IRibbonIconProvider;
+    FSkLabelProvider: IRibbonSkLabelProvider;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -26,6 +28,9 @@ type
       const AData: TRibbonItemViewData): TRibbonItemView;
     property IconProvider: IRibbonIconProvider read FIconProvider
       write FIconProvider;
+    { Handed to new views supporting IRibbonSkLabelConsumer. }
+    property SkLabelProvider: IRibbonSkLabelProvider read FSkLabelProvider
+      write FSkLabelProvider;
   end;
 
 implementation
@@ -40,6 +45,7 @@ begin
   RegisterView('button', TRibbonButtonItemView);
   RegisterView('separator', TRibbonSeparatorItemView);
   RegisterView('label', TRibbonLabelItemView);
+  RegisterView('sklabel', TRibbonSkLabelItemView);
   RegisterView('edit', TRibbonEditItemView);
   RegisterView('combo', TRibbonComboItemView);
   RegisterView('colorpicker', TRibbonColorItemView);
@@ -55,6 +61,7 @@ end;
 destructor TRibbonViewFactory.Destroy;
 begin
   FIconProvider := nil;
+  FSkLabelProvider := nil;
   FClasses.Free;
   inherited;
 end;
@@ -79,6 +86,7 @@ function TRibbonViewFactory.CreateView(AOwner: TComponent; AParent: TControl;
   const AData: TRibbonItemViewData): TRibbonItemView;
 var
   ViewClass: TRibbonItemViewClass;
+  Consumer: IRibbonSkLabelConsumer;
 begin
   if AParent = nil then
     raise EArgumentNilException.Create('A Ribbon item view needs a visual parent.');
@@ -91,6 +99,8 @@ begin
       raise ERibbonItemViewError.Create('A registered adapter created no control.');
     Result.Control.Parent := AParent;
     Result.IconProvider := FIconProvider;
+    if Supports(Result, IRibbonSkLabelConsumer, Consumer) then
+      Consumer.SetSkLabelProvider(FSkLabelProvider);
     Result.Apply(AData);
   except
     Result.Free;

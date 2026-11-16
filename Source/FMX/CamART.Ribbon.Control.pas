@@ -30,6 +30,7 @@ uses
   CamART.Ribbon.ReferenceBindings,
   CamART.Ribbon.Auxiliary,
   CamART.Ribbon.Icons,
+  CamART.Ribbon.SkLabels,
   CamART.Ribbon.Actions,
   CamART.Ribbon.Popups,
   CamART.Ribbon.GroupPopup,
@@ -98,6 +99,7 @@ type
     FApplicationMeasure: TRibbonTextMeasure;
     FIcons: IRibbonIconRegistry;
     FIconProvider: IRibbonIconProvider;
+    FSkLabels: IRibbonSkLabelRegistry;
     FFontProvider: IRibbonFontProvider;
     FPopups: TRibbonPopupService;
     FGroupPopup: TRibbonGroupPopupService;
@@ -111,6 +113,7 @@ type
     FContextWatch: TTimer;
     FLastSceneScale: Single;
     FLastIconRevision: UInt64;
+    FLastSkLabelRevision: UInt64;
     FPopupContext: TRibbonPopupContextKind;
     FPopupOwnerId: string;
     FTabScroll: THorzScrollBox;
@@ -277,6 +280,8 @@ type
     property ViewFactory: TRibbonViewFactory read GetViewFactory;
     property Icons: IRibbonIconRegistry read FIcons;
     property SvgIcons: IRibbonSvgIconRegistry read GetSvgIcons;
+    { TSkLabel templates for sklabel items; snapshots, caller keeps sources. }
+    property SkLabels: IRibbonSkLabelRegistry read FSkLabels;
     property IconProvider: IRibbonIconProvider read FIconProvider write SetIconProvider;
     property FontProvider: IRibbonFontProvider read FFontProvider write SetFontProvider;
   published
@@ -417,6 +422,7 @@ begin
   FApplicationCaption := 'File';
   FIcons := TRibbonIconRegistry.Create;
   FIconProvider := FIcons;
+  FSkLabels := TRibbonSkLabelRegistry.Create;
   FFontProvider := TRibbonConfiguredFontProvider.Create(
     TArray<string>.Create('Arial', 'Courier New', 'Times New Roman'));
   FPopups := TRibbonPopupService.Create(Self);
@@ -469,6 +475,7 @@ begin
   FCompactButton.OnClick := CompactClicked;
   AttachRibbonInput(FCompactButton, FInputDensity);
   FPresenter.IconProvider := FIconProvider;
+  FPresenter.ViewFactory.SkLabelProvider := FSkLabels;
   FQuickAccessScroll := TRibbonStyledHorzScrollBox.Create(Self);
   FQuickAccessScroll.Parent := Self;
   FQuickAccessScroll.Stored := False;
@@ -535,6 +542,7 @@ begin
   FFontProvider := nil;
   FIconProvider := nil;
   FIcons := nil;
+  FSkLabels := nil;
   { FMX and TComponent free the persistent host/control and model ownership
     trees. They are intentionally not also stored in owning TObjectLists. }
   inherited;
@@ -1611,6 +1619,7 @@ begin
         if Scene <> nil then FLastSceneScale := Scene.GetSceneScale;
         FLastIconRevision := 0;
         if FIconProvider <> nil then FLastIconRevision := FIconProvider.GetRevision;
+        FLastSkLabelRevision := FSkLabels.GetRevision;
         Inc(FRefreshCount);
         { Replay the full snapshot for a coalesced change, including structure.
           A geometry-only pass could leave a stale view after a model mutation.
@@ -2151,10 +2160,12 @@ begin
     if Scene <> nil then Scale := Scene.GetSceneScale;
     Revision := 0;
     if FIconProvider <> nil then Revision := FIconProvider.GetRevision;
-    if (Scale <> FLastSceneScale) or (Revision <> FLastIconRevision) then
+    if (Scale <> FLastSceneScale) or (Revision <> FLastIconRevision) or
+       (FSkLabels.GetRevision <> FLastSkLabelRevision) then
     begin
       FLastSceneScale := Scale;
       FLastIconRevision := Revision;
+      FLastSkLabelRevision := FSkLabels.GetRevision;
       if not TryClosePopup then Exit;
       Refresh;
       Exit;

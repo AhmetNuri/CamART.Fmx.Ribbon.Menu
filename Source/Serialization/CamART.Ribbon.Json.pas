@@ -779,6 +779,7 @@ begin
   if Kind = 'button' then ItemClass := TRibbonButton
   else if Kind = 'separator' then ItemClass := TRibbonSeparator
   else if Kind = 'label' then ItemClass := TRibbonLabel
+  else if Kind = 'sklabel' then ItemClass := TRibbonSkLabel
   else if Kind = 'edit' then ItemClass := TRibbonEdit
   else if Kind = 'combo' then ItemClass := TRibbonComboBox
   else if Kind = 'colorpicker' then ItemClass := TRibbonColorPicker
@@ -916,6 +917,14 @@ begin
     if (Kind <> '') and (Gallery.Entries.FindById(Kind) = nil) then
       JsonError(APath + '.selectedId', 'reference', 'Selected gallery entry does not exist.');
     Gallery.SelectedId := Kind;
+  end
+  else if Item is TRibbonSkLabel then
+  begin
+    CheckProperties(AObject, APath, ['id', 'order', 'type', 'caption', 'name',
+      'icon', 'visible', 'enabled', 'hint', 'template']);
+    { Only the template key is data. The TSkLabel appearance is registered by
+      the application; an unregistered key falls back to the caption. }
+    TRibbonSkLabel(Item).TemplateKey := Text(AObject, 'template', APath, '');
   end
   else if Item is TRibbonProgressBar then
   begin
@@ -1293,7 +1302,7 @@ var
        (C <> TRibbonFontPicker) and (C <> TRibbonFontSizePicker) and
        (C <> TRibbonGallery) and (C <> TRibbonCheckBox) and
        (C <> TRibbonRadioButton) and (C <> TRibbonProgressBar) and
-       (C <> TRibbonDropDownMenu) then
+       (C <> TRibbonDropDownMenu) and (C <> TRibbonSkLabel) then
       JsonError('$.type', 'unknown.type', 'No JSON codec is registered for class ' + AItem.ClassName);
     Result := TJSONObject.Create;
     try
@@ -1320,6 +1329,8 @@ var
       end
       else if AItem is TRibbonEdit then
         AddText(Result, 'text', TRibbonEdit(AItem).Text)
+      else if AItem is TRibbonSkLabel then
+        AddText(Result, 'template', TRibbonSkLabel(AItem).TemplateKey)
       else if AItem is TRibbonComboBox then
       begin
         Combo := TRibbonComboBox(AItem);

@@ -86,6 +86,12 @@ type
     procedure Write(AItem: TRibbonItem; const AInput: TRibbonItemInput); override;
   end;
 
+  TSkLabelBinding = class(TBasicBinding)
+  public
+    procedure Read(AItem: TRibbonItem; const AResolver: IRibbonCommandResolver;
+      var AData: TRibbonItemViewData); override;
+  end;
+
   TProgressBinding = class(TBasicBinding)
   public
     procedure Read(AItem: TRibbonItem; const AResolver: IRibbonCommandResolver;
@@ -200,6 +206,13 @@ begin
   else (AItem as TRibbonColorPicker).Color := AInput.Color;
 end;
 
+procedure TSkLabelBinding.Read(AItem: TRibbonItem; const AResolver: IRibbonCommandResolver;
+  var AData: TRibbonItemViewData);
+begin
+  inherited;
+  AData.TemplateKey := (AItem as TRibbonSkLabel).TemplateKey;
+end;
+
 procedure TProgressBinding.Read(AItem: TRibbonItem; const AResolver: IRibbonCommandResolver;
   var AData: TRibbonItemViewData);
 var
@@ -255,6 +268,7 @@ begin
   RegisterBinding('dropdownmenu', TButtonBinding.Create);
   RegisterBinding('separator', TSeparatorBinding.Create);
   RegisterBinding('label', TBasicBinding.Create);
+  RegisterBinding('sklabel', TSkLabelBinding.Create);
   RegisterBinding('edit', TEditBinding.Create);
   RegisterBinding('combo', TComboBinding.Create);
   RegisterBinding('fontpicker', TComboBinding.Create);
