@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 2,
+  "theme": "ModernLight",
+  "activeTabId": "home",
+  "applicationCaption": "Dosya",
+  "expandedHeight": 250,
+  "tabs": [
+    {
+      "id": "home",
+      "caption": "Giriş",
+      "groups": [
+        {
+          "id": "document",
+          "caption": "Belge",
+          "items": [
+            { "id": "new", "type": "button", "caption": "Yeni", "command": "new", "icon": "svg.document", "style": "large" },
+            { "id": "save", "type": "button", "caption": "Kaydet", "command": "save", "icon": "svg.save", "style": "small" },
+            { "id": "share", "type": "button", "caption": "Paylaş", "command": "share", "icon": "svg.share", "style": "small" },
+            { "id": "doc-sep", "type": "separator" },
+            { "id": "chart", "type": "button", "caption": "Grafik", "command": "chart", "icon": "svg.chart", "style": "large" }
+          ]
+        },
+        {
+          "id": "titles",
+          "caption": "Skia başlıklar",
+          "items": [
+            { "id": "title", "type": "sklabel", "caption": "Proje Raporu", "template": "title" },
+            { "id": "rich", "type": "sklabel", "caption": "Zengin metin", "template": "rich" },
+            { "id": "status", "type": "sklabel", "caption": "Son kayıt: bugün 18:40", "template": "status" }
+          ]
+        },
+        {
+          "id": "mixed",
+          "caption": "Karışık",
+          "items": [
+            { "id": "badge", "type": "button", "caption": "Uyarı", "command": "alert", "icon": "svg.alert", "style": "large" },
+            { "id": "mixed-label", "type": "sklabel", "caption": "TSkSvg + TSkLabel", "template": "accent" },
+            { "id": "classic", "type": "label", "caption": "Klasik TLabel" },
+            { "id": "fallback", "type": "sklabel", "caption": "Şablonsuz TSkLabel" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "view",
+      "caption": "Görünüm",
+      "groups": [
+        {
+          "id": "view-info",
+          "caption": "Bilgi",
+          "items": [
+            { "id": "view-chart", "type": "button", "caption": "Grafik", "command": "chart", "icon": "svg.chart.gray", "style": "large" },
+            { "id": "view-note", "type": "sklabel", "caption": "Bu sekme JSON'dan yüklendi.", "template": "rich.note" }
+          ]
+        }
+      ]
+    }
+  ],
+  "quickAccess": [
+    { "id": "qat-save", "item": "save" },
+    { "id": "qat-new", "item": "new" }
+  ],
+  "applicationMenu": [
+    { "id": "app-new", "command": "new", "caption": "Yeni", "icon": "svg.document" },
+    { "id": "app-save", "command": "save", "caption": "Kaydet", "icon": "svg.save" }
+  ]
+}

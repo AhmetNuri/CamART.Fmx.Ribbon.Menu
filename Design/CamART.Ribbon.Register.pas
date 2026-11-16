@@ -27,7 +27,7 @@ begin
     TRibbonLabel, TRibbonEdit, TRibbonComboBox, TRibbonColorPicker,
     TRibbonFontPicker, TRibbonFontSizePicker, TRibbonGallery,
     TRibbonCheckBox, TRibbonRadioButton, TRibbonProgressBar,
-    TRibbonDropDownMenu]);
+    TRibbonDropDownMenu, TRibbonSkLabel]);
   RegisterComponentEditor(TCamARTRibbon, TRibbonComponentEditor);
   RegisterComponentEditor(TRibbonNode, TRibbonComponentEditor);
   RegisterPropertyEditor(TypeInfo(string), TRibbonNode, 'Id',

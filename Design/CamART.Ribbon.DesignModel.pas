@@ -17,7 +17,7 @@ type
   TRibbonDesignNodeKind = (rdnTab, rdnGroup, rdnButton, rdnSeparator,
     rdnLabel, rdnEdit, rdnComboBox, rdnColorPicker, rdnFontPicker,
     rdnFontSizePicker, rdnGallery, rdnCheckBox, rdnRadioButton,
-    rdnProgressBar, rdnDropDownMenu);
+    rdnProgressBar, rdnDropDownMenu, rdnSkLabel);
 
   { Design-only operation policy, kept independent of DesignIntf so native
     acceptance tests can exercise the exact ownership/reference code. It is
@@ -122,6 +122,7 @@ begin
     rdnRadioButton: Result := TRibbonRadioButton;
     rdnProgressBar: Result := TRibbonProgressBar;
     rdnDropDownMenu: Result := TRibbonDropDownMenu;
+    rdnSkLabel: Result := TRibbonSkLabel;
   else
     raise ERibbonDesignError.Create('The selected kind is not an item.');
   end;
@@ -146,6 +147,7 @@ begin
     rdnRadioButton: Result := 'RadioButton';
     rdnProgressBar: Result := 'ProgressBar';
     rdnDropDownMenu: Result := 'DropDownMenu';
+    rdnSkLabel: Result := 'SkLabel';
   else
     raise ERibbonDesignError.Create('Unknown editor item kind.');
   end;

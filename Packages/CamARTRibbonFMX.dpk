@@ -30,6 +30,7 @@ contains
   CamART.Ribbon.PopupGeometry in '..\Source\FMX\CamART.Ribbon.PopupGeometry.pas',
   CamART.Ribbon.Popups in '..\Source\FMX\CamART.Ribbon.Popups.pas',
   CamART.Ribbon.Presenter in '..\Source\FMX\CamART.Ribbon.Presenter.pas',
+  CamART.Ribbon.SkLabels in '..\Source\FMX\CamART.Ribbon.SkLabels.pas',
   CamART.Ribbon.ReferenceBindings in '..\Source\FMX\CamART.Ribbon.ReferenceBindings.pas',
   CamART.Ribbon.Style in '..\Source\FMX\CamART.Ribbon.Style.pas',
   CamART.Ribbon.StyleContext in '..\Source\FMX\CamART.Ribbon.StyleContext.pas',

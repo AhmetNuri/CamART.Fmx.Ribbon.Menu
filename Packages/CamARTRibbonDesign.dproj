@@ -60,7 +60,6 @@
         <DCC_UnitSearchPath>.;..\Build\Delphi13.2\$(Platform)\$(Config)\Packages;..\Design;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_DcuOutput>..\Build\Delphi13.2\$(Platform)\$(Config)\Packages\CamARTRibbonDesign\DCU</DCC_DcuOutput>
         <DCC_DcpOutput>..\Build\Delphi13.2\$(Platform)\$(Config)\Packages</DCC_DcpOutput>
-        <DCC_BplOutput Condition="'$(Platform)'=='Win64'">$(BDSCOMMONDIR)\Bpl\Win64</DCC_BplOutput>
         <VerInfo_IncludeVerInfo>false</VerInfo_IncludeVerInfo>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
@@ -79,9 +78,11 @@
         <DCC_UsePackage>rtl;fmx;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
+        <DCC_BplOutput>$(BDSCOMMONDIR)\Bpl</DCC_BplOutput>
         <DCC_UsePackage>rtl;fmx;CamARTRibbonFMX;CamARTRibbonCore;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
+        <DCC_BplOutput>$(BDSCOMMONDIR)\Bpl\Win64</DCC_BplOutput>
         <DCC_UsePackage>rtl;fmx;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64x)'!=''">
