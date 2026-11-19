@@ -65,6 +65,7 @@ type
     FControl: TStyledControl;
     FTabStrip: TControl;
     FContent: TControl;
+    FFrame: TControl;
     FDiagnostics: string;
     function GetHasTabStripPart: Boolean;
     function GetHasContentPart: Boolean;
@@ -75,6 +76,9 @@ type
     procedure Clear;
     function TabStripRect: TRectF;
     function ContentRect: TRectF;
+    { Inner edge of the Ribbon body's outer frame: the style "background"
+      part deflated by its visible stroke, or the control bounds. }
+    function FrameRect: TRectF;
     property Diagnostics: string read FDiagnostics;
     property HasTabStripPart: Boolean read GetHasTabStripPart;
     property HasContentPart: Boolean read GetHasContentPart;
@@ -97,6 +101,7 @@ uses
   System.Generics.Collections,
   FMX.Edit,
   FMX.Forms,
+  FMX.Graphics,
   FMX.Layouts,
   FMX.Objects,
   CamART.Ribbon.Themes,
@@ -377,12 +382,16 @@ begin
     if FDiagnostics <> '' then FDiagnostics := FDiagnostics + sLineBreak;
     FDiagnostics := FDiagnostics + 'Ribbon style part content is missing or is not a TControl; using measured fallback bounds.';
   end;
+  { Optional: the frame only refines the body inset; no diagnostic. }
+  Part := FControl.FindStyleResource('background');
+  if Part is TControl then FFrame := TControl(Part);
 end;
 
 procedure TRibbonStyleAdapter.Clear;
 begin
   FTabStrip := nil;
   FContent := nil;
+  FFrame := nil;
   FDiagnostics := '';
 end;
 
@@ -424,6 +433,26 @@ begin
   TabRect := TabStripRect;
   Result := RectF(0, TabRect.Bottom, Max(0, FControl.Width),
     Max(TabRect.Bottom, FControl.Height));
+end;
+
+function TRibbonStyleAdapter.FrameRect: TRectF;
+var
+  Stroke: Single;
+begin
+  if FFrame <> nil then
+    Result := PartBounds(FFrame)
+  else
+    Result := RectF(0, 0, Max(0, FControl.Width), Max(0, FControl.Height));
+  { TShape draws its stroke inside its local bounds. }
+  if (FFrame is TShape) and (TShape(FFrame).Stroke.Kind <> TBrushKind.None) then
+  begin
+    Stroke := TShape(FFrame).Stroke.Thickness;
+    if not IsNan(Stroke) and not IsInfinite(Stroke) and (Stroke > 0) then
+    begin
+      Stroke := Min(Stroke, Min(Result.Width, Result.Height) / 2);
+      Result.Inflate(-Stroke, -Stroke);
+    end;
+  end;
 end;
 
 end.

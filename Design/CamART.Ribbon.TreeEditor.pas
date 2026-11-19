@@ -272,6 +272,8 @@ begin
   Width := 1000;
   Height := 730;
   Position := TFormPosition.ScreenCenter;
+  { Keep this modeless editor visible while the IDE Object Inspector has focus. }
+  FormStyle := TFormStyle.StayOnTop;
   BuildUI;
   RebuildTree('');
 end;

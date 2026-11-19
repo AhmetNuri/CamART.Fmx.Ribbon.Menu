@@ -332,6 +332,11 @@ uses
   CamART.Ribbon.StyledControls,
   System.Generics.Collections;
 
+const
+  { Visible logical-unit gap between group frames and the frame/underline
+    surrounding the expanded Ribbon body. }
+  RibbonBodyFrameGap = 4;
+
 type
   { A callback is allowed to free its button or Ribbon. This observer is owned
     by the stack frame, not by either watched component. No freed object is
@@ -1367,10 +1372,13 @@ end;
 
 procedure TCamARTRibbon.LayoutViews;
 var
-  TabRect, BodyRect, AppInsets, MenuInsets: TRectF;
+  TabRect, BodyRect, AppInsets, MenuInsets, BodyFrame: TRectF;
   TabHeight, TabWidth, BodyWidth, BodyHeight, QATHeight, QATTop,
     AppWidth, AppGap, CollapsedHeight, AvailableWidth, RevisedWidth,
-    MinimumTarget, TabContentWidth, QATWidth: Single;
+    MinimumTarget, TabContentWidth, QATWidth, EdgeBottom, ViewWidth,
+    ViewHeight, RevisedHeight: Single;
+  FitPass: Integer;
+  ViewportShrunk: Boolean;
   QATSize, AppSize, MenuSize: TSizeF;
   Plan: TRibbonLayoutResult;
   Metrics: TRibbonLayoutMetrics;
@@ -1399,14 +1407,11 @@ begin
     MinimumTarget := 28;
     if FInputDensity = ridTouch then MinimumTarget := 44;
     TabRect := FStyleAdapter.TabStripRect;
-    BodyRect := FStyleAdapter.ContentRect;
     { Style parts describe placement, but the real Ribbon client is the limit.
-      Preserve logical units; scene scale only invalidates raster measurement. }
+      Preserve logical units; scene scale only invalidates raster measurement.
+      The body rectangle is derived below from the frame and tab edges. }
     TabRect.Left := Max(Padding.Left, TabRect.Left);
     TabRect.Right := Max(TabRect.Left, Min(Width - Padding.Right, TabRect.Right));
-    BodyRect.Left := Max(Padding.Left, BodyRect.Left);
-    BodyRect.Right := Max(BodyRect.Left, Min(Width - Padding.Right, BodyRect.Right));
-    BodyRect.Bottom := Min(Height - Padding.Bottom, BodyRect.Bottom);
     QATSize := FQuickAccessPresenter.Measure;
     if Guard.Root = nil then Exit;
     QATHeight := 0;
@@ -1468,7 +1473,6 @@ begin
     begin
       if FCollapsed then QATTop := TabRect.Bottom
       else QATTop := Max(TabRect.Top + TabHeight, Height - Padding.Bottom - QATHeight);
-      BodyRect.Bottom := Min(BodyRect.Bottom, QATTop);
     end;
     FQuickAccessScroll.SetBounds(Padding.Left, QATTop,
       Max(0, Width - Padding.Left - Padding.Right), QATHeight);
@@ -1480,7 +1484,23 @@ begin
     FQuickAccessHost.Width := Max(FQuickAccessScroll.Width, QATWidth);
     if Guard.Root = nil then Exit;
 
-    BodyRect.Top := Max(BodyRect.Top, TabRect.Top + TabHeight);
+    { Group frames show RibbonBodyFrameGap against every edge surrounding the
+      body: the tab strip underline, the inner edge of the outer frame and a
+      QAT placed below. This is the single place where the gap is applied:
+      the body viewport edges are derived from the measured frame/tab edges,
+      so style padding between them (style "content" part) is accounted for
+      instead of being added on top. Insetting the viewport, not the content,
+      keeps the gap while scrolling. Ribbon.Padding stays a lower bound; the
+      engine, group spacing and item placement inside groups are unchanged. }
+    BodyFrame := FStyleAdapter.FrameRect;
+    EdgeBottom := BodyFrame.Bottom;
+    if (FQuickAccessPosition = rqpBelow) and (QATHeight > 0) then
+      EdgeBottom := Min(EdgeBottom, QATTop);
+    BodyRect.Left := Max(Padding.Left, BodyFrame.Left + RibbonBodyFrameGap);
+    BodyRect.Right := Max(BodyRect.Left,
+      Min(Width - Padding.Right, BodyFrame.Right - RibbonBodyFrameGap));
+    BodyRect.Top := TabRect.Top + TabHeight + RibbonBodyFrameGap;
+    BodyRect.Bottom := Min(Height - Padding.Bottom, EdgeBottom - RibbonBodyFrameGap);
     BodyWidth := Max(0, BodyRect.Width);
     BodyHeight := Max(0, BodyRect.Bottom - BodyRect.Top);
     FBodyScroll.SetBounds(BodyRect.Left, BodyRect.Top, BodyWidth, BodyHeight);
@@ -1489,7 +1509,8 @@ begin
     if Guard.Root = nil then Exit;
     FBodyScroll.ApplyStyleLookup;
     if Guard.Root = nil then Exit;
-    AvailableWidth := Max(0, FBodyScroll.ViewportRect.Width);
+    ViewWidth := Max(0, FBodyScroll.ViewportRect.Width);
+    ViewHeight := Max(0, FBodyScroll.ViewportRect.Height);
     Metrics := FPresenter.EffectiveMetrics(TRibbonLayoutMetrics.Default);
     if Guard.Root = nil then Exit;
     FCompactButton.ApplyStyleLookup;
@@ -1503,22 +1524,27 @@ begin
       MenuSize.Height + MenuInsets.Top + MenuInsets.Bottom + 12);
     Measures := FPresenter.MeasureGroups;
     if Guard.Root = nil then Exit;
-    Plan := FLayoutEngine.Calculate(Measures, AvailableWidth, Metrics);
-    FBodyHost.SetBounds(0, 0, Max(AvailableWidth, Plan.ContentWidth),
-      Max(BodyHeight, Plan.ContentHeight));
-      if Guard.Root = nil then Exit;
-    { A vertical scrollbar can reduce the real client width after the content
-      extent changes. Refit once using the smaller observed viewport. Never
-      enlarge the plan in this pass from feedback caused by hiding a scrollbar. }
-    RevisedWidth := Max(0, FBodyScroll.ViewportRect.Width);
-    if RevisedWidth < AvailableWidth then
-    begin
-      AvailableWidth := RevisedWidth;
+    { The engine receives the viewport width inside the gap; the scroll
+      extent is the plan itself. When everything fits, the extent equals the
+      viewport and no scrollbar is shown; otherwise scrolling reaches the
+      last group, whose frame then ends at the gapped viewport edge.
+      A scrollbar can reduce the real viewport after the extent changes.
+      Refit with the smaller observed viewport (each bar appears once), but
+      never enlarge the plan from feedback caused by hiding a scrollbar. }
+    FitPass := 0;
+    repeat
+      AvailableWidth := ViewWidth;
       Plan := FLayoutEngine.Calculate(Measures, AvailableWidth, Metrics);
-      FBodyHost.SetBounds(0, 0, Max(AvailableWidth, Plan.ContentWidth),
-        Max(BodyHeight, Plan.ContentHeight));
-        if Guard.Root = nil then Exit;
-    end;
+      FBodyHost.SetBounds(0, 0, Max(ViewWidth, Plan.ContentWidth),
+        Max(ViewHeight, Plan.ContentHeight));
+      if Guard.Root = nil then Exit;
+      Inc(FitPass);
+      RevisedWidth := Max(0, FBodyScroll.ViewportRect.Width);
+      RevisedHeight := Max(0, FBodyScroll.ViewportRect.Height);
+      ViewportShrunk := (RevisedWidth < ViewWidth) or (RevisedHeight < ViewHeight);
+      ViewWidth := Min(ViewWidth, RevisedWidth);
+      ViewHeight := Min(ViewHeight, RevisedHeight);
+    until not ViewportShrunk or (FitPass >= 3);
     FLastLayout := Plan;
     FCompactButton.Visible := Plan.Mode = rlmCompactMenu;
     if Guard.Root = nil then Exit;

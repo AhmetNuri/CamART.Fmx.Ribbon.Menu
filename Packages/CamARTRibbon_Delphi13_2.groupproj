@@ -1,86 +1,84 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
-  <!-- Delphi 13.2 package group. Select the platform matching the IDE process. -->
-  <PropertyGroup>
-    <ProjectGuid>{6A421C12-015A-45BC-B597-5CF00BA7086A}</ProjectGuid>
-    <Config Condition="'$(Config)'==''">Release</Config>
-    <Platform Condition="'$(Platform)'==''">Win32</Platform>
-  </PropertyGroup>
-  <ItemGroup>
-    <Projects Include="CamARTRibbonCore.dproj">
-      <Dependencies></Dependencies>
-    </Projects>
-    <Projects Include="CamARTRibbonFMX.dproj">
-      <Dependencies>CamARTRibbonCore.dproj</Dependencies>
-    </Projects>
-    <Projects Include="CamARTRibbonJSON.dproj">
-      <Dependencies>CamARTRibbonCore.dproj</Dependencies>
-    </Projects>
-    <Projects Include="CamARTRibbonJSONFMX.dproj">
-      <Dependencies>CamARTRibbonCore.dproj;CamARTRibbonFMX.dproj;CamARTRibbonJSON.dproj</Dependencies>
-    </Projects>
-    <Projects Include="CamARTRibbonDesign.dproj">
-      <Dependencies>CamARTRibbonCore.dproj;CamARTRibbonFMX.dproj</Dependencies>
-    </Projects>
-  </ItemGroup>
-  <ProjectExtensions>
-    <Borland.Personality>Default.Personality.12</Borland.Personality>
-    <Borland.ProjectType/>
-    <BorlandProject><Default.Personality/></BorlandProject>
-  </ProjectExtensions>
-  <Target Name="CamARTRibbonCore">
-    <MSBuild Projects="CamARTRibbonCore.dproj" Targets="Build" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonCore:Make">
-    <MSBuild Projects="CamARTRibbonCore.dproj" Targets="Make" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonCore:Clean">
-    <MSBuild Projects="CamARTRibbonCore.dproj" Targets="Clean" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonFMX">
-    <MSBuild Projects="CamARTRibbonFMX.dproj" Targets="Build" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonFMX:Make">
-    <MSBuild Projects="CamARTRibbonFMX.dproj" Targets="Make" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonFMX:Clean">
-    <MSBuild Projects="CamARTRibbonFMX.dproj" Targets="Clean" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonJSON">
-    <MSBuild Projects="CamARTRibbonJSON.dproj" Targets="Build" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonJSON:Make">
-    <MSBuild Projects="CamARTRibbonJSON.dproj" Targets="Make" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonJSON:Clean">
-    <MSBuild Projects="CamARTRibbonJSON.dproj" Targets="Clean" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonJSONFMX">
-    <MSBuild Projects="CamARTRibbonJSONFMX.dproj" Targets="Build" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonJSONFMX:Make">
-    <MSBuild Projects="CamARTRibbonJSONFMX.dproj" Targets="Make" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonJSONFMX:Clean">
-    <MSBuild Projects="CamARTRibbonJSONFMX.dproj" Targets="Clean" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonDesign">
-    <MSBuild Projects="CamARTRibbonDesign.dproj" Targets="Build" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonDesign:Make">
-    <MSBuild Projects="CamARTRibbonDesign.dproj" Targets="Make" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="CamARTRibbonDesign:Clean">
-    <MSBuild Projects="CamARTRibbonDesign.dproj" Targets="Clean" Properties="Config=$(Config);Platform=$(Platform)"/>
-  </Target>
-  <Target Name="Build">
-    <CallTarget Targets="CamARTRibbonCore;CamARTRibbonFMX;CamARTRibbonJSON;CamARTRibbonJSONFMX;CamARTRibbonDesign"/>
-  </Target>
-  <Target Name="Make">
-    <CallTarget Targets="CamARTRibbonCore:Make;CamARTRibbonFMX:Make;CamARTRibbonJSON:Make;CamARTRibbonJSONFMX:Make;CamARTRibbonDesign:Make"/>
-  </Target>
-  <Target Name="Clean">
-    <CallTarget Targets="CamARTRibbonDesign:Clean;CamARTRibbonJSONFMX:Clean;CamARTRibbonJSON:Clean;CamARTRibbonFMX:Clean;CamARTRibbonCore:Clean"/>
-  </Target>
-  <Import Project="$(BDS)\Bin\CodeGear.Group.Targets"/>
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{6A421C12-015A-45BC-B597-5CF00BA7086A}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="CamARTRibbonCore.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="CamARTRibbonFMX.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="CamARTRibbonJSON.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="CamARTRibbonJSONFMX.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="CamARTRibbonDesign.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="CamARTRibbonCore">
+        <MSBuild Projects="CamARTRibbonCore.dproj"/>
+    </Target>
+    <Target Name="CamARTRibbonCore:Clean">
+        <MSBuild Projects="CamARTRibbonCore.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="CamARTRibbonCore:Make">
+        <MSBuild Projects="CamARTRibbonCore.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="CamARTRibbonFMX">
+        <MSBuild Projects="CamARTRibbonFMX.dproj"/>
+    </Target>
+    <Target Name="CamARTRibbonFMX:Clean">
+        <MSBuild Projects="CamARTRibbonFMX.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="CamARTRibbonFMX:Make">
+        <MSBuild Projects="CamARTRibbonFMX.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="CamARTRibbonJSON">
+        <MSBuild Projects="CamARTRibbonJSON.dproj"/>
+    </Target>
+    <Target Name="CamARTRibbonJSON:Clean">
+        <MSBuild Projects="CamARTRibbonJSON.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="CamARTRibbonJSON:Make">
+        <MSBuild Projects="CamARTRibbonJSON.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="CamARTRibbonJSONFMX">
+        <MSBuild Projects="CamARTRibbonJSONFMX.dproj"/>
+    </Target>
+    <Target Name="CamARTRibbonJSONFMX:Clean">
+        <MSBuild Projects="CamARTRibbonJSONFMX.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="CamARTRibbonJSONFMX:Make">
+        <MSBuild Projects="CamARTRibbonJSONFMX.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="CamARTRibbonDesign">
+        <MSBuild Projects="CamARTRibbonDesign.dproj"/>
+    </Target>
+    <Target Name="CamARTRibbonDesign:Clean">
+        <MSBuild Projects="CamARTRibbonDesign.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="CamARTRibbonDesign:Make">
+        <MSBuild Projects="CamARTRibbonDesign.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="CamARTRibbonCore;CamARTRibbonFMX;CamARTRibbonJSON;CamARTRibbonJSONFMX;CamARTRibbonDesign"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="CamARTRibbonCore:Clean;CamARTRibbonFMX:Clean;CamARTRibbonJSON:Clean;CamARTRibbonJSONFMX:Clean;CamARTRibbonDesign:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="CamARTRibbonCore:Make;CamARTRibbonFMX:Make;CamARTRibbonJSON:Make;CamARTRibbonJSONFMX:Make;CamARTRibbonDesign:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
