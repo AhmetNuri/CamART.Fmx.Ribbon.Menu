@@ -90,6 +90,7 @@ begin
   RequireFiniteNonNegative(AMetrics.ItemGap, 'ItemGap');
   RequireFiniteNonNegative(AMetrics.GroupGap, 'GroupGap');
   RequireFiniteNonNegative(AMetrics.CaptionHeight, 'CaptionHeight');
+  RequireFiniteNonNegative(AMetrics.CaptionGap, 'CaptionGap');
   RequireFinitePositive(AMetrics.ContentHeight, 'ContentHeight');
 
   Ids := TDictionary<string, Byte>.Create;
@@ -157,6 +158,7 @@ begin
     'group padding');
   GroupHeight := CheckedAdd(ContentHeight, CaptionHeight,
     'group content and caption');
+  GroupHeight := CheckedAdd(GroupHeight, AMetrics.CaptionGap, 'caption gap');
   GroupHeight := CheckedAdd(GroupHeight, HorizontalPadding, 'group height');
 
   SetLength(Result.Groups, Length(AGroups));
@@ -220,7 +222,8 @@ begin
     Placement.Bounds := RectF(GroupX, 0,
       CheckedAdd(GroupX, GroupWidth, 'group right edge'), GroupHeight);
     Placement.CaptionBounds := RectF(AMetrics.Padding,
-      CheckedAdd(AMetrics.Padding, ContentHeight, 'caption top'),
+      CheckedAdd(CheckedAdd(AMetrics.Padding, ContentHeight, 'caption top'),
+        AMetrics.CaptionGap, 'caption top gap'),
       GroupWidth - AMetrics.Padding,
       GroupHeight - AMetrics.Padding);
     Result.Groups[I] := Placement;

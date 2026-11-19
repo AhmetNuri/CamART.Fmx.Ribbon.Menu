@@ -18,6 +18,9 @@
         <Projects Include="CamARTRibbonDesign.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="D:\Projects\GCodeManager\CncEditorPro2\CncEditorPro2.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -71,14 +74,23 @@
     <Target Name="CamARTRibbonDesign:Make">
         <MSBuild Projects="CamARTRibbonDesign.dproj" Targets="Make"/>
     </Target>
+    <Target Name="CncEditorPro2">
+        <MSBuild Projects="D:\Projects\GCodeManager\CncEditorPro2\CncEditorPro2.dproj"/>
+    </Target>
+    <Target Name="CncEditorPro2:Clean">
+        <MSBuild Projects="D:\Projects\GCodeManager\CncEditorPro2\CncEditorPro2.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="CncEditorPro2:Make">
+        <MSBuild Projects="D:\Projects\GCodeManager\CncEditorPro2\CncEditorPro2.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="CamARTRibbonCore;CamARTRibbonFMX;CamARTRibbonJSON;CamARTRibbonJSONFMX;CamARTRibbonDesign"/>
+        <CallTarget Targets="CamARTRibbonCore;CamARTRibbonFMX;CamARTRibbonJSON;CamARTRibbonJSONFMX;CamARTRibbonDesign;CncEditorPro2"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="CamARTRibbonCore:Clean;CamARTRibbonFMX:Clean;CamARTRibbonJSON:Clean;CamARTRibbonJSONFMX:Clean;CamARTRibbonDesign:Clean"/>
+        <CallTarget Targets="CamARTRibbonCore:Clean;CamARTRibbonFMX:Clean;CamARTRibbonJSON:Clean;CamARTRibbonJSONFMX:Clean;CamARTRibbonDesign:Clean;CncEditorPro2:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="CamARTRibbonCore:Make;CamARTRibbonFMX:Make;CamARTRibbonJSON:Make;CamARTRibbonJSONFMX:Make;CamARTRibbonDesign:Make"/>
+        <CallTarget Targets="CamARTRibbonCore:Make;CamARTRibbonFMX:Make;CamARTRibbonJSON:Make;CamARTRibbonJSONFMX:Make;CamARTRibbonDesign:Make;CncEditorPro2:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

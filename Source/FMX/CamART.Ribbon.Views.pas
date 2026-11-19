@@ -128,6 +128,7 @@ type
     function GetRibbonStyle(const AClone: Boolean): TFmxObject;
     procedure RecalcEnabled; override;
     function DesiredCaptionSize: TSizeF;
+    function CaptionBandHeight: Single;
     function DesiredCaptionWidth: Single;
     function MeasurementKey: string;
     procedure SetCaptionBounds(const AValue: TRectF);
@@ -830,6 +831,19 @@ begin
     Result := FTextMeasure.Measure(FCaption,
       FCaptionLabel.ResultingTextSettings.Font);
   end;
+end;
+
+function TRibbonGroupView.CaptionBandHeight: Single;
+var
+  Band: TFmxObject;
+begin
+  { The style's caption band has its own height. The layout caption area must
+    be at least as tall, otherwise the band paints over the item area. }
+  Result := 0;
+  ApplyStyleLookup;
+  Band := FindStyleResource('captionbackground');
+  if (Band is TControl) and (TControl(Band).Align = TAlignLayout.Bottom) then
+    Result := TControl(Band).Height;
 end;
 
 function TRibbonGroupView.DesiredCaptionWidth: Single;

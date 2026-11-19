@@ -711,7 +711,8 @@ begin
     Result[GroupIndex].Id := FGroups[I].Id;
     Size := Group.DesiredCaptionSize;
     Result[GroupIndex].CaptionWidth := Size.Width;
-    Result[GroupIndex].CaptionHeight := Size.Height + 4;
+    Result[GroupIndex].CaptionHeight := Max(Size.Height + 4,
+      Group.CaptionBandHeight);
     Result[GroupIndex].MinWidth := FGroups[I].MinWidth;
     Result[GroupIndex].PreferredWidth := FGroups[I].PreferredWidth;
     Result[GroupIndex].Pinned := FGroups[I].Pinned;

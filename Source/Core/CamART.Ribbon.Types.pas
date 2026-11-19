@@ -62,6 +62,8 @@ type
     ItemGap: Single;
     GroupGap: Single;
     CaptionHeight: Single;
+    { Free space between the item area and the caption band. }
+    CaptionGap: Single;
     ContentHeight: Single;
     MinimumItemWidth: Single;
     MinimumItemHeight: Single;
@@ -103,6 +105,7 @@ begin
   Result.ItemGap := 4;
   Result.GroupGap := 6;
   Result.CaptionHeight := 20;
+  Result.CaptionGap := 2;
   Result.ContentHeight := 90;
   Result.MinimumItemWidth := 28;
   Result.MinimumItemHeight := 28;

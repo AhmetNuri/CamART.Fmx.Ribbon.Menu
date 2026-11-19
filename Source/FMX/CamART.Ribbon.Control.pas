@@ -1380,6 +1380,7 @@ var
   FitPass: Integer;
   ViewportShrunk: Boolean;
   QATSize, AppSize, MenuSize: TSizeF;
+  ViewPos: TPointF;
   Plan: TRibbonLayoutResult;
   Metrics: TRibbonLayoutMetrics;
   Measures: TArray<TRibbonGroupMeasure>;
@@ -1545,6 +1546,23 @@ begin
       ViewWidth := Min(ViewWidth, RevisedWidth);
       ViewHeight := Min(ViewHeight, RevisedHeight);
     until not ViewportShrunk or (FitPass >= 3);
+    { A stale scroll offset (e.g. left over from the tiny collapsed viewport)
+      would shift the groups up under the tab strip. Keep the offset inside
+      the scrollable range; collapsed or non-overflowing bodies sit at 0. }
+    ViewPos := FBodyScroll.ViewportPosition;
+    if FCollapsed or not FBodyScroll.Visible then
+      ViewPos := PointF(0, 0)
+    else
+    begin
+      ViewPos.X := Max(0, Min(ViewPos.X,
+        FBodyHost.Width - FBodyScroll.ViewportRect.Width));
+      ViewPos.Y := Max(0, Min(ViewPos.Y,
+        FBodyHost.Height - FBodyScroll.ViewportRect.Height));
+    end;
+    if (ViewPos.X <> FBodyScroll.ViewportPosition.X) or
+       (ViewPos.Y <> FBodyScroll.ViewportPosition.Y) then
+      FBodyScroll.ViewportPosition := ViewPos;
+    if Guard.Root = nil then Exit;
     FLastLayout := Plan;
     FCompactButton.Visible := Plan.Mode = rlmCompactMenu;
     if Guard.Root = nil then Exit;

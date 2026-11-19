@@ -267,7 +267,7 @@ begin
     Result.SetBounds(0, 0, 128, 128);
     Result.HitTest := False;
     Result.Padding.Rect := RectF(T.GroupPadding, T.GroupPadding,
-      T.GroupPadding, 0);
+      T.GroupPadding, T.GroupPadding);
     AddRectangle(Result, Result, 'background', T.GroupSurface, T.Border,
       T.GroupCornerRadius, T.BorderThickness);
     CaptionBand := AddRectangle(Result, Result, 'captionbackground',
