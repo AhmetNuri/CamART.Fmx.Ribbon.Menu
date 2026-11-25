@@ -12,6 +12,12 @@ type
   TRibbonTheme = (rtOffice2007Blue, rtOffice2010Blue, rtOfficeSilver,
     rtOfficeBlack, rtModernLight, rtModernDark);
 
+  { rtmAuto: the selected book decides; Theme only fills Ribbon roles the book
+    lacks (historical behaviour). rtmManual: without an explicit component
+    StyleBook, Ribbon roles use the Theme preset even when the form has a
+    book; native controls (edit/combo/list) still follow the form's book. }
+  TRibbonThemeMode = (rtmAuto, rtmManual);
+
   TRibbonStyleRole = (rsrRoot, rsrGroup, rsrTab, rsrLargeButton,
     rsrSmallButton, rsrIconButton, rsrSplitButton, rsrQuickAccess,
     rsrApplicationButton, rsrCollapsedGroup, rsrMenuItem, rsrGalleryItem,

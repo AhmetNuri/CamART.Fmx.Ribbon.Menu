@@ -72,6 +72,8 @@ type
     function DesiredSizeForStyle(AStyle: TRibbonButtonStyle): TSizeF; virtual;
     function CanCompact: Boolean; virtual;
     function IsInteractive: Boolean; virtual;
+    { Decorative items take their row's height from the layout. }
+    function FillsRow: Boolean; virtual;
     function MeasurementKey: string; virtual;
     function ContainsFocus: Boolean;
     procedure SetPresentationStyle(AStyle: TRibbonButtonStyle);
@@ -110,6 +112,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     function DesiredSize: TSizeF; override;
+    function FillsRow: Boolean; override;
   end;
 
   TRibbonLabelItemView = class(TRibbonItemView)
@@ -569,6 +572,11 @@ begin
   Result := (FControl <> nil) and FControl.HitTest and FControl.CanFocus;
 end;
 
+function TRibbonItemView.FillsRow: Boolean;
+begin
+  Result := False;
+end;
+
 function TRibbonItemView.CanCompact: Boolean;
 begin
   Result := False;
@@ -755,11 +763,16 @@ end;
 function TRibbonSeparatorItemView.DesiredSize: TSizeF;
 begin
   TStyledControl(Control).ApplyStyleLookup;
-  if FData.ButtonStyle = rbsLarge then
-    Result := TSizeF.Create(1, 72)
-  else
-    Result := TSizeF.Create(1, 24);
+  { Only the separator's own minimum: the layout stretches it to the real
+    height of its row (large: content height, small: row band), so it never
+    forces a taller Ribbon. }
+  Result := TSizeF.Create(1, FindRibbonMetrics(Control).SeparatorMinHeight);
   Result := IncludeControlPadding(Control, Result);
+end;
+
+function TRibbonSeparatorItemView.FillsRow: Boolean;
+begin
+  Result := True;
 end;
 
 constructor TRibbonLabelItemView.Create(AOwner: TComponent);
@@ -979,7 +992,8 @@ begin
   Size := FTextMeasure.Measure(FCheck.Text, FCheck.ResultingTextSettings.Font);
   Result := IncludeControlPadding(FCheck,
     TSizeF.Create(Max(40, Size.Width + Indicator),
-      Max(Max(28, Indicator), Size.Height + 10)));
+      Max(Max(FindRibbonMetrics(FControl).SmallButtonMinHeight, Indicator),
+        Size.Height + 10)));
 end;
 
 constructor TRibbonRadioItemView.Create(AOwner: TComponent);
@@ -1040,7 +1054,8 @@ begin
   Size := FTextMeasure.Measure(FRadio.Text, FRadio.ResultingTextSettings.Font);
   Result := IncludeControlPadding(FRadio,
     TSizeF.Create(Max(40, Size.Width + Indicator),
-      Max(Max(28, Indicator), Size.Height + 10)));
+      Max(Max(FindRibbonMetrics(FControl).SmallButtonMinHeight, Indicator),
+        Size.Height + 10)));
 end;
 
 constructor TRibbonProgressItemView.Create(AOwner: TComponent);

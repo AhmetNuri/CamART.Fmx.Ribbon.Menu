@@ -129,6 +129,9 @@ var
   HasSmallColumn, HasAnyColumn: Boolean;
   Placement: TRibbonGroupPlacement;
   Item: TRibbonItemMeasure;
+  { Row index of each placed small item inside its column; -1 for large. }
+  RowOf: TArray<Integer>;
+  ColumnRow: Integer;
 
   procedure BeginNewColumn;
   begin
@@ -137,6 +140,58 @@ var
     HasAnyColumn := True;
     ColumnY := 0;
     ColumnWidth := 0;
+    ColumnRow := 0;
+  end;
+
+  { Rows of small items form bands across a group's columns. Each band is as
+    tall as its tallest regular item; shorter items (labels, combos, edits)
+    are vertically centred in the band and row-filling items (separators)
+    take the band height. Column breaks decided above are never changed, and
+    when the banded grid would not fit the content height the stacked
+    placement is kept, so nothing can be clipped. With equal heights per
+    row the result is identical to plain stacking. }
+  procedure AlignRows(const AGroup: TRibbonGroupMeasure;
+    var APlacement: TRibbonGroupPlacement);
+  var
+    Rows, R, K, Q: Integer;
+    Heights: TArray<Single>;
+    Total, Top, H: Single;
+  begin
+    Rows := 0;
+    for K := 0 to High(RowOf) do Rows := Max(Rows, RowOf[K] + 1);
+    if Rows = 0 then Exit;
+    SetLength(Heights, Rows);
+    for K := 0 to High(RowOf) do
+      if (RowOf[K] >= 0) and not AGroup.Items[K].FillRow then
+        Heights[RowOf[K]] := Max(Heights[RowOf[K]], AGroup.Items[K].Height);
+    { A band of only row-filling items keeps their own minimum. }
+    for K := 0 to High(RowOf) do
+      if (RowOf[K] >= 0) and (Heights[RowOf[K]] = 0) then
+        Heights[RowOf[K]] := Max(Heights[RowOf[K]], AGroup.Items[K].Height);
+    Total := 0;
+    for R := 0 to Rows - 1 do
+    begin
+      Total := Total + Heights[R];
+      if R > 0 then Total := Total + AMetrics.ItemGap;
+    end;
+    if Total > ContentHeight then Exit;
+    for K := 0 to High(RowOf) do
+    begin
+      R := RowOf[K];
+      if R < 0 then Continue;
+      Top := AMetrics.Padding;
+      for Q := 0 to R - 1 do
+        Top := Top + Heights[Q] + AMetrics.ItemGap;
+      if AGroup.Items[K].FillRow then
+        H := Heights[R]
+      else
+      begin
+        H := AGroup.Items[K].Height;
+        Top := Top + (Heights[R] - H) / 2;
+      end;
+      APlacement.Items[K].Bounds.Top := Top;
+      APlacement.Items[K].Bounds.Bottom := Top + H;
+    end;
   end;
 
 begin
@@ -168,10 +223,12 @@ begin
     Placement := Default(TRibbonGroupPlacement);
     Placement.Id := AGroups[I].Id;
     SetLength(Placement.Items, Length(AGroups[I].Items));
+    SetLength(RowOf, Length(AGroups[I].Items));
     X := AMetrics.Padding;
     RightEdge := X;
     ColumnY := 0;
     ColumnWidth := 0;
+    ColumnRow := 0;
     HasSmallColumn := False;
     HasAnyColumn := False;
 
@@ -180,6 +237,7 @@ begin
       Item := AGroups[I].Items[J];
       Placement.Items[J].Id := Item.Id;
       Placement.Items[J].Style := Item.Style;
+      RowOf[J] := -1;
       if Item.Style = rbsLarge then
       begin
         BeginNewColumn;
@@ -209,8 +267,11 @@ begin
         ColumnWidth := Max(ColumnWidth, Item.Width);
         RightEdge := CheckedAdd(X, ColumnWidth, 'small column right edge');
         ColumnY := CheckedAdd(ItemBottom, AMetrics.ItemGap, 'next small row');
+        RowOf[J] := ColumnRow;
+        Inc(ColumnRow);
       end;
     end;
+    AlignRows(AGroups[I], Placement);
 
     // Include both inset sides, the full measured caption, and user minimums.
     GroupWidth := CheckedAdd(RightEdge, AMetrics.Padding, 'group width');

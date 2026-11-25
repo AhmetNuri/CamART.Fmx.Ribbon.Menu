@@ -312,7 +312,7 @@ begin
   Size := FTextMeasure.Measure(Text, ResultingTextSettings.Font);
   Result := TSizeF.Create(
     Max(64, Size.Width + 24 + Insets.Left + Insets.Right),
-    Max(RibbonDefaultTabHeight,
+    Max(FindRibbonMetrics(Self).TabMinHeight,
       Size.Height + 12 + Insets.Top + Insets.Bottom));
 end;
 
@@ -607,8 +607,16 @@ var
   Insets: TRectF;
   Font: TFont;
   HasImage: Boolean;
+  Metrics: TRibbonMetrics;
+  Target: Single;
 begin
   ApplyStyleLookup;
+  Metrics := FindRibbonMetrics(Self);
+  { MinimumTargetSize is the density floor (28 pointer / 44 touch). The
+    pointer value is the configurable small-item floor of the Ribbon. }
+  Target := FMinimumTargetSize;
+  if Target = RibbonDefaultSmallButtonMinHeight then
+    Target := Metrics.SmallButtonMinHeight;
   Template := nil;
   Context := FindRibbonStyleContext(Self);
   if Context <> nil then
@@ -650,17 +658,17 @@ begin
       Extra := 0;
       if HasImage then Extra := Side + 6;
       Result := TSizeF.Create(Max(Max(72, Side + 16), Size.Width + 24),
-        Max(64, Size.Height + 20 + Extra));
+        Max(Metrics.LargeButtonMinHeight, Size.Height + 20 + Extra));
     end
     else
     begin
       Extra := 0;
       if HasImage then Extra := Side + 6;
       Result := TSizeF.Create(Max(36, Size.Width + 20 + Extra),
-        Max(Max(28, Side + 8), Size.Height + 10));
+        Max(Max(Metrics.SmallButtonMinHeight, Side + 8), Size.Height + 10));
     end;
-    Result.Width := Max(Result.Width, FMinimumTargetSize);
-    Result.Height := Max(Result.Height, FMinimumTargetSize);
+    Result.Width := Max(Result.Width, Target);
+    Result.Height := Max(Result.Height, Target);
     if FArrow.Visible then Result.Width := Result.Width + Max(24, FMinimumTargetSize);
     Result.Width := Result.Width + Insets.Left + Insets.Right;
     Result.Height := Result.Height + Insets.Top + Insets.Bottom;

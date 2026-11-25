@@ -106,7 +106,8 @@ uses
   System.UITypes,
   FMX.BehaviorManager,
   CamART.Ribbon.Interaction,
-  CamART.Ribbon.StyledControls;
+  CamART.Ribbon.StyledControls,
+  CamART.Ribbon.StyleScope;
 
 type
   TGroupControlAccess = class(TControl)
@@ -545,7 +546,8 @@ begin
   if not TargetsAvailable(Token) then Exit;
   FViewport := TRibbonPopupViewport.Capture(FHost, FAnchor);
   if not FViewport.HasArea then Exit;
-  Metrics := FPresenter.EffectiveMetrics(TRibbonLayoutMetrics.Default);
+  Metrics := FPresenter.EffectiveMetrics(
+    FindRibbonMetrics(FContentHost).ToLayoutMetrics);
   if not Token.IsAlive or (Token.GetSession <> Session) then Exit;
   Measures := FPresenter.MeasureGroups;
   if not Token.IsAlive or (Token.GetSession <> Session) then Exit;

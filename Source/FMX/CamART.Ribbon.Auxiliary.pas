@@ -53,7 +53,8 @@ implementation
 uses
   System.SysUtils,
   System.Math,
-  CamART.Ribbon.Themes;
+  CamART.Ribbon.Themes,
+  CamART.Ribbon.StyleScope;
 
 type
   { The QAT is a native surface too. A resize/style callback may replace its
@@ -371,8 +372,7 @@ begin
   { Capture local policy before native measurement. The caller checks its
     weak lifetime/revision guard before accessing either presenter or view. }
   Interactive := AView.IsInteractive;
-  MinimumTarget := 28;
-  if FInputDensity = ridTouch then MinimumTarget := 44;
+  MinimumTarget := FindRibbonMetrics(AView.Control).MinimumTarget(FInputDensity);
   Result := AView.DesiredSize;
   if not Interactive then Exit;
   Result.Width := Max(Result.Width, MinimumTarget);

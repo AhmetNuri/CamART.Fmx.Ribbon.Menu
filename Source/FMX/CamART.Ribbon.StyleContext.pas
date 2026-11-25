@@ -11,6 +11,7 @@ uses
   System.Messaging,
   FMX.Types,
   FMX.Controls,
+  CamART.Ribbon.Types,
   CamART.Ribbon.Themes;
 
 type
@@ -25,6 +26,9 @@ type
     FObservedRoot: TFmxObject;
     FObservedScene: Pointer;
     FTheme: TRibbonTheme;
+    FThemeMode: TRibbonThemeMode;
+    FInheritFormNativeStyles: Boolean;
+    FMetrics: TRibbonMetrics;
     FRevision: UInt64;
     FPresets: TObjectDictionary<TRibbonStyleRole, TFmxObject>;
     FDiagnostics: TStringList;
@@ -34,6 +38,11 @@ type
     FClosing: Boolean;
     procedure SetStyleBook(const AValue: TStyleBook);
     procedure SetTheme(const AValue: TRibbonTheme);
+    procedure SetThemeMode(const AValue: TRibbonThemeMode);
+    procedure SetInheritFormNativeStyles(const AValue: Boolean);
+    function GetMetrics: TRibbonMetrics;
+    function SceneStyleBook: TStyleBook;
+    function ManualThemeActive: Boolean;
     function GetEffectiveStyleBook: TStyleBook;
     function GetDiagnostics: string;
     function Capture: Boolean;
@@ -65,10 +74,22 @@ type
     property StyleBook: TStyleBook read FStyleBook write SetStyleBook;
     property EffectiveStyleBook: TStyleBook read GetEffectiveStyleBook;
     property Theme: TRibbonTheme read FTheme write SetTheme;
+    property ThemeMode: TRibbonThemeMode read FThemeMode write SetThemeMode;
+    { With an explicit component StyleBook, native controls missing from it
+      use the form/scene book before the platform style. Off by default:
+      the component book then stays fully isolated (historical rule). }
+    property InheritFormNativeStyles: Boolean read FInheritFormNativeStyles
+      write SetInheritFormNativeStyles;
+    { Borrowed from the Ribbon; never nil for readers (shared defaults). }
+    property Metrics: TRibbonMetrics read GetMetrics write FMetrics;
     property Revision: UInt64 read FRevision;
     property Diagnostics: string read GetDiagnostics;
     property OnChanged: TNotifyEvent read FOnChanged write FOnChanged;
   end;
+
+{ Shared, read-only-by-convention defaults for views outside any Ribbon
+  scope (for example before parenting). Never modify the returned object. }
+function RibbonDefaultMetrics: TRibbonMetrics;
 
 implementation
 
@@ -77,6 +98,15 @@ uses
   FMX.Styles.Objects,
   FMX.Objects,
   CamART.Ribbon.ThemeStyles;
+
+var
+  GDefaultMetrics: TRibbonMetrics;
+
+function RibbonDefaultMetrics: TRibbonMetrics;
+begin
+  if GDefaultMetrics = nil then GDefaultMetrics := TRibbonMetrics.Create;
+  Result := GDefaultMetrics;
+end;
 
 function ResourceIn(ARoot: TFmxObject; const AName: string): TFmxObject;
 begin
@@ -225,6 +255,44 @@ begin
   Refresh;
 end;
 
+procedure TRibbonStyleContext.SetThemeMode(const AValue: TRibbonThemeMode);
+begin
+  if (Ord(AValue) < Ord(Low(TRibbonThemeMode))) or
+     (Ord(AValue) > Ord(High(TRibbonThemeMode))) then
+    raise EArgumentOutOfRangeException.Create('Invalid Ribbon theme mode.');
+  if FThemeMode = AValue then Exit;
+  FThemeMode := AValue;
+  Refresh;
+end;
+
+procedure TRibbonStyleContext.SetInheritFormNativeStyles(const AValue: Boolean);
+begin
+  if FInheritFormNativeStyles = AValue then Exit;
+  FInheritFormNativeStyles := AValue;
+  Refresh;
+end;
+
+function TRibbonStyleContext.GetMetrics: TRibbonMetrics;
+begin
+  Result := FMetrics;
+  if Result = nil then Result := RibbonDefaultMetrics;
+end;
+
+function TRibbonStyleContext.SceneStyleBook: TStyleBook;
+begin
+  Result := nil;
+  if FClosing or (FHost = nil) or (csDestroying in FHost.ComponentState) or
+     (FHost.Scene = nil) then Exit;
+  Result := FHost.Scene.GetStyleBook;
+  if (Result <> nil) and (csDestroying in Result.ComponentState) then Result := nil;
+end;
+
+function TRibbonStyleContext.ManualThemeActive: Boolean;
+begin
+  { An explicit component book is the most specific choice and wins. }
+  Result := (FThemeMode = rtmManual) and (FStyleBook = nil);
+end;
+
 procedure TRibbonStyleContext.SetTheme(const AValue: TRibbonTheme);
 begin
   if (Ord(AValue) < Ord(Low(TRibbonTheme))) or
@@ -260,8 +328,10 @@ begin
     Refresh;
     Exit;
   end;
-  if (FStyleBook = nil) and (MessageData.Scene = FHost.Scene) then
+  if ((FStyleBook = nil) or FInheritFormNativeStyles) and
+     (MessageData.Scene = FHost.Scene) then
   begin
+    { The form book is in use: directly, or as native-control fallback. }
     Refresh;
     Exit;
   end;
@@ -330,8 +400,8 @@ end;
 procedure TRibbonStyleContext.BindStyleSources(AControl: TStyledControl;
   AClone, ATemplate: TFmxObject);
 var
-  Book: TStyleBook;
-  BookRoot, PlatformRoot, Origin: TFmxObject;
+  Book, SceneBook: TStyleBook;
+  BookRoot, SceneRoot, PlatformRoot, Origin: TFmxObject;
   FromSelectedBook: Boolean;
 
   procedure Visit(AObject: TFmxObject);
@@ -374,6 +444,13 @@ begin
   Book := GetEffectiveStyleBook;
   BookRoot := nil;
   if Book <> nil then BookRoot := Book.GetStyle(AControl);
+  SceneRoot := nil;
+  if FInheritFormNativeStyles and (FStyleBook <> nil) then
+  begin
+    SceneBook := SceneStyleBook;
+    if (SceneBook <> nil) and (SceneBook <> FStyleBook) then
+      SceneRoot := SceneBook.GetStyle(AControl);
+  end;
   PlatformRoot := TStyleManager.ActiveStyle(AControl);
   FromSelectedBook := False;
   Origin := ATemplate;
@@ -381,6 +458,13 @@ begin
   begin
     if Origin = BookRoot then
     begin
+      FromSelectedBook := True;
+      Break;
+    end;
+    { An inherited form-book template keeps the form book's own atlas. }
+    if (SceneRoot <> nil) and (Origin = SceneRoot) then
+    begin
+      BookRoot := SceneRoot;
       FromSelectedBook := True;
       Break;
     end;
@@ -419,7 +503,16 @@ begin
   Lookup := AControl.StyleLookup;
   RoleName := RibbonThemeStyleName(ARole);
   StandardName := NativeName(ARole);
-  Template := BookTemplate(AControl, [Lookup, RoleName, StandardName]);
+  if ManualThemeActive then
+  begin
+    { Manual theme: the form book does not repaint Ribbon roles. Only an
+      explicit per-control StyleLookup is still honoured. }
+    Template := nil;
+    if (Lookup <> '') and (Lookup <> RoleName) then
+      Template := BookTemplate(AControl, [Lookup]);
+  end
+  else
+    Template := BookTemplate(AControl, [Lookup, RoleName, StandardName]);
   if (Template <> nil) and not (ARole in [rsrRoot, rsrGroup, rsrPopup,
     rsrSeparator]) and (Template.FindStyleResource('text', False) = nil) then
   begin
@@ -451,9 +544,22 @@ function TRibbonStyleContext.ResolveNativeStyle(AControl: TStyledControl;
   const ADefaultName: string; const AClone: Boolean): TFmxObject;
 var
   Template, Root: TFmxObject;
+  SceneBook: TStyleBook;
 begin
   if AControl = nil then raise EArgumentNilException.Create('A style control is required.');
   Template := BookTemplate(AControl, [AControl.StyleLookup, ADefaultName]);
+  if (Template = nil) and FInheritFormNativeStyles and (FStyleBook <> nil) then
+  begin
+    { Opt-in: a component book that styles only Ribbon roles lets the
+      application's form book supply complete native controls. }
+    SceneBook := SceneStyleBook;
+    if (SceneBook <> nil) and (SceneBook <> FStyleBook) then
+    begin
+      Root := SceneBook.GetStyle(AControl);
+      Template := ResourceIn(Root, AControl.StyleLookup);
+      if Template = nil then Template := ResourceIn(Root, ADefaultName);
+    end;
+  end;
   if Template = nil then
   begin
     { Keep complete native edit/combo/list/check semantics. Do not call
@@ -475,5 +581,10 @@ begin
       raise;
     end;
 end;
+
+initialization
+
+finalization
+  GDefaultMetrics.Free;
 
 end.

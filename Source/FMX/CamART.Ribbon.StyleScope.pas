@@ -9,6 +9,7 @@ uses
   FMX.Types,
   FMX.Controls,
   FMX.Layouts,
+  CamART.Ribbon.Types,
   CamART.Ribbon.StyleContext;
 
 type
@@ -56,6 +57,8 @@ type
   end;
 
 function FindRibbonStyleContext(AObject: TFmxObject): TRibbonStyleContext;
+{ Size policy of the Ribbon that owns AObject; shared defaults outside one. }
+function FindRibbonMetrics(AObject: TFmxObject): TRibbonMetrics;
 
 implementation
 
@@ -130,6 +133,15 @@ end;
 function TRibbonStyleScopeHost.GetRibbonStyleContext: TRibbonStyleContext;
 begin
   Result := FStyleContext;
+end;
+
+function FindRibbonMetrics(AObject: TFmxObject): TRibbonMetrics;
+var
+  Context: TRibbonStyleContext;
+begin
+  Context := FindRibbonStyleContext(AObject);
+  if Context <> nil then Result := Context.Metrics
+  else Result := RibbonDefaultMetrics;
 end;
 
 end.

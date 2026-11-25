@@ -100,7 +100,8 @@ type
 implementation
 
 uses
-  System.Math, FMX.Types, CamART.Ribbon.Style, CamART.Ribbon.Interaction;
+  System.Math, FMX.Types, CamART.Ribbon.Style, CamART.Ribbon.StyleScope,
+  CamART.Ribbon.Interaction;
 
 type
   { Owned by the calling stack, never by the presentation being observed.
@@ -589,25 +590,20 @@ end;
 function TRibbonPresenter.EffectiveMetrics(
   const ABase: TRibbonLayoutMetrics): TRibbonLayoutMetrics;
 var
+  Metrics: TRibbonMetrics;
+  Target: Single;
   Group: TRibbonGroupView;
   Inset: Single;
   Insets: TRectF;
 begin
   Result := ABase;
-  if FInputDensity = ridTouch then
-  begin
-    Result.MinimumItemWidth := Max(Result.MinimumItemWidth, 44);
-    Result.MinimumItemHeight := Max(Result.MinimumItemHeight, 44);
-    Result.ContentHeight := Max(Result.ContentHeight,
-      2 * Result.MinimumItemHeight + Result.ItemGap);
-  end
-  else
-  begin
-    Result.MinimumItemWidth := Max(Result.MinimumItemWidth, 28);
-    Result.MinimumItemHeight := Max(Result.MinimumItemHeight, 28);
-    Result.ContentHeight := Max(Result.ContentHeight,
-      3 * Result.MinimumItemHeight + 2 * Result.ItemGap);
-  end;
+  Metrics := FindRibbonMetrics(FContentHost);
+  Target := Metrics.MinimumTarget(FInputDensity);
+  { One configurable floor replaces the former 3x28 / 2x44 row rules; both
+    defaults equal 92, so an untouched Ribbon keeps its historical height. }
+  Result.MinimumItemWidth := Max(Result.MinimumItemWidth, Target);
+  Result.MinimumItemHeight := Max(Result.MinimumItemHeight, Target);
+  Result.ContentHeight := Max(Result.ContentHeight, Metrics.ContentMinHeight);
   { Use style-owned insets as measured input, preserving the caller's base.
     Logical FMX bounds are never multiplied by the scene's raster scale. }
   for Group in FGroupViews.Values do
@@ -699,7 +695,7 @@ begin
     RefreshFocusLocks(Result);
     Exit;
   end;
-  if FInputDensity = ridTouch then MinimumTarget := 44 else MinimumTarget := 28;
+  MinimumTarget := FindRibbonMetrics(FContentHost).MinimumTarget(FInputDensity);
   SetLength(Result, Length(FGroups));
   GroupIndex := 0;
   for I := 0 to High(FGroups) do
@@ -739,6 +735,7 @@ begin
       Result[GroupIndex].Items[ItemIndex].Height := Size.Height;
       Result[GroupIndex].Items[ItemIndex].Style := FGroups[I].Items[J].ButtonStyle;
       Result[GroupIndex].Items[ItemIndex].CanCompact := Item.CanCompact;
+      Result[GroupIndex].Items[ItemIndex].FillRow := Item.FillsRow;
       Result[GroupIndex].Items[ItemIndex].CompactStyle := rbsSmall;
       if Item.CanCompact then
       begin
@@ -945,6 +942,7 @@ var
 begin
   Result := RibbonDefaultTabHeight;
   if FShuttingDown then Exit;
+  Result := FindRibbonMetrics(FContentHost).TabMinHeight;
   if FInputDensity = ridTouch then Result := Max(Result, 44);
   Guard := TRibbonLayoutExecutionGuard.CreateGuard(Self);
   try

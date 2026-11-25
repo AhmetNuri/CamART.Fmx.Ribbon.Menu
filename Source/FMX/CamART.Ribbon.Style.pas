@@ -421,7 +421,7 @@ begin
   if FTabStrip <> nil then
     Exit(PartBounds(FTabStrip));
   Result := RectF(0, 0, Max(0, FControl.Width),
-    Min(RibbonDefaultTabHeight, Max(0, FControl.Height)));
+    Min(FindRibbonMetrics(FControl).TabMinHeight, Max(0, FControl.Height)));
 end;
 
 function TRibbonStyleAdapter.ContentRect: TRectF;

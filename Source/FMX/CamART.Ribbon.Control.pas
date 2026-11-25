@@ -56,6 +56,18 @@ type
     CompactCaption: string;
   end;
 
+  { Style/size part of a configuration. Kept separate from
+    TRibbonConfigurationSettings so existing callers that fill that record
+    field by field keep compiling and never pass uninitialised new fields. }
+  TRibbonStyleConfiguration = record
+    ThemeMode: TRibbonThemeMode;
+    InheritFormNativeStyles: Boolean;
+    Metrics: TRibbonMetricValues;
+    { rtmAuto, False and the historical metric defaults. }
+    class function Default: TRibbonStyleConfiguration; static;
+  end;
+  PRibbonStyleConfiguration = ^TRibbonStyleConfiguration;
+
   { The logical commit has succeeded. A native presentation or application
     observer subsequently raised; callers must NOT retry as an uncommitted
     import or claim that the old graph remains active. }
@@ -134,10 +146,22 @@ type
     FOnActiveTabChanged: TNotifyEvent;
     FOnCollapsedChanged: TNotifyEvent;
     FOnDiagnostic: TRibbonDiagnosticEvent;
+    FOnStyleChanged: TNotifyEvent;
+    FMetrics: TRibbonMetrics;
     function GetStyleBook: TStyleBook;
     procedure SetStyleBook(const AValue: TStyleBook);
     function GetEffectiveStyleBook: TStyleBook;
     function GetTheme: TRibbonTheme;
+    function GetThemeMode: TRibbonThemeMode;
+    procedure SetThemeMode(const AValue: TRibbonThemeMode);
+    function GetInheritFormNativeStyles: Boolean;
+    procedure SetInheritFormNativeStyles(const AValue: Boolean);
+    procedure SetMetrics(const AValue: TRibbonMetrics);
+    procedure MetricsChanged(Sender: TObject);
+    procedure ApplyConfigurationCore(ASource: TRibbonModel;
+      AQuickAccess, AApplicationMenu: TRibbonCommandLinks;
+      const ASettings: TRibbonConfigurationSettings;
+      AStyle: PRibbonStyleConfiguration);
     procedure SetTheme(const AValue: TRibbonTheme);
     function GetStyleDiagnostics: string;
     procedure StyleContextChanged(Sender: TObject);
@@ -232,13 +256,20 @@ type
     procedure Refresh;
     procedure RefreshCommands;
     function CaptureConfigurationSettings: TRibbonConfigurationSettings;
+    function CaptureStyleConfiguration: TRibbonStyleConfiguration;
     { ASource is a detached staging model with no observer and no open batch.
       On success its owner keeps the former live tabs, to be freed by its
       caller. Links are cloned before mutation. Calls require the UI thread
       and cannot nest inside another model/configuration update. }
     procedure ApplyConfiguration(ASource: TRibbonModel;
       AQuickAccess, AApplicationMenu: TRibbonCommandLinks;
-      const ASettings: TRibbonConfigurationSettings);
+      const ASettings: TRibbonConfigurationSettings); overload;
+    { Same atomic operation; also applies ThemeMode, InheritFormNativeStyles
+      and Metrics. The overload above leaves those Ribbon settings unchanged. }
+    procedure ApplyConfiguration(ASource: TRibbonModel;
+      AQuickAccess, AApplicationMenu: TRibbonCommandLinks;
+      const ASettings: TRibbonConfigurationSettings;
+      const AStyle: TRibbonStyleConfiguration); overload;
     procedure BindAction(const ACommandId: string; AAction: TCustomAction);
     procedure PopulateFonts(APicker: TRibbonFontPicker);
     procedure ClosePopup;
@@ -296,6 +327,14 @@ type
     property StyleLookup;
     property StyleBook: TStyleBook read GetStyleBook write SetStyleBook;
     property Theme: TRibbonTheme read GetTheme write SetTheme default rtModernLight;
+    { Priority: component StyleBook > ThemeMode=rtmManual (Theme preset) >
+      form/scene StyleBook with Theme as fallback (rtmAuto, default). }
+    property ThemeMode: TRibbonThemeMode read GetThemeMode write SetThemeMode
+      default rtmAuto;
+    property InheritFormNativeStyles: Boolean read GetInheritFormNativeStyles
+      write SetInheritFormNativeStyles default False;
+    { Central size floors and default layout spacing. }
+    property Metrics: TRibbonMetrics read FMetrics write SetMetrics;
     property InputDensity: TRibbonInputDensity read FInputDensity
       write SetInputDensity default ridPointer;
     property ReduceMotion: Boolean read FReduceMotion write SetReduceMotion default True;
@@ -319,6 +358,10 @@ type
       write FOnCollapsedChanged;
     property OnDiagnostic: TRibbonDiagnosticEvent read FOnDiagnostic
       write FOnDiagnostic;
+    { Raised after the Ribbon re-applied its styles: application/form
+      StyleBook change, component book/theme change or RefreshTheme. }
+    property OnStyleChanged: TNotifyEvent read FOnStyleChanged
+      write FOnStyleChanged;
   end;
 
 implementation
@@ -401,7 +444,10 @@ begin
   Height := 184;
   { Empty means the semantic default, not an explicit user override. }
   StyleLookup := '';
+  FMetrics := TRibbonMetrics.Create;
   FStyleContext := TRibbonStyleContext.Create(Self, Self);
+  FStyleContext.Metrics := FMetrics;
+  FMetrics.OnChange := MetricsChanged;
   FStyleContext.OnChanged := StyleContextChanged;
   FExpandedHeight := Height;
   FModel := TRibbonModel.Create(Self);
@@ -518,6 +564,8 @@ begin
   FOnActiveTabChanged := nil;
   FOnCollapsedChanged := nil;
   FOnDiagnostic := nil;
+  FOnStyleChanged := nil;
+  if FMetrics <> nil then FMetrics.OnChange := nil;
   if FStyleContext <> nil then FStyleContext.OnChanged := nil;
   if FContextWatch <> nil then
   begin
@@ -532,6 +580,8 @@ begin
   FreeAndNil(FQuickAccessPresenter);
   FreeAndNil(FPresenter);
   FreeAndNil(FStyleContext);
+  { Views alive after this point read shared defaults (no context). }
+  FreeAndNil(FMetrics);
   FreeAndNil(FReferenceResolver);
   FreeAndNil(FBindings);
   FreeAndNil(FQuickAccess);
@@ -599,9 +649,42 @@ begin
   Result.CompactCaption := FCompactCaption;
 end;
 
+class function TRibbonStyleConfiguration.Default: TRibbonStyleConfiguration;
+begin
+  Result.ThemeMode := rtmAuto;
+  Result.InheritFormNativeStyles := False;
+  Result.Metrics := TRibbonMetrics.Defaults;
+end;
+
+function TCamARTRibbon.CaptureStyleConfiguration: TRibbonStyleConfiguration;
+begin
+  Result.ThemeMode := ThemeMode;
+  Result.InheritFormNativeStyles := InheritFormNativeStyles;
+  Result.Metrics := FMetrics.GetValues;
+end;
+
 procedure TCamARTRibbon.ApplyConfiguration(ASource: TRibbonModel;
   AQuickAccess, AApplicationMenu: TRibbonCommandLinks;
   const ASettings: TRibbonConfigurationSettings);
+begin
+  ApplyConfigurationCore(ASource, AQuickAccess, AApplicationMenu, ASettings, nil);
+end;
+
+procedure TCamARTRibbon.ApplyConfiguration(ASource: TRibbonModel;
+  AQuickAccess, AApplicationMenu: TRibbonCommandLinks;
+  const ASettings: TRibbonConfigurationSettings;
+  const AStyle: TRibbonStyleConfiguration);
+var
+  Style: TRibbonStyleConfiguration;
+begin
+  Style := AStyle;
+  ApplyConfigurationCore(ASource, AQuickAccess, AApplicationMenu, ASettings, @Style);
+end;
+
+procedure TCamARTRibbon.ApplyConfigurationCore(ASource: TRibbonModel;
+  AQuickAccess, AApplicationMenu: TRibbonCommandLinks;
+  const ASettings: TRibbonConfigurationSettings;
+  AStyle: PRibbonStyleConfiguration);
 var
   NewQuickAccess, NewApplicationMenu, OldLinks: TRibbonCommandLinks;
   NewSelection, OldSelection: TRibbonSelectionController;
@@ -635,6 +718,13 @@ begin
      (Ord(ASettings.QuickAccessPosition) < Ord(Low(TRibbonQATPosition))) or
      (Ord(ASettings.QuickAccessPosition) > Ord(High(TRibbonQATPosition))) then
     raise EArgumentOutOfRangeException.Create('A configuration contains an invalid enum.');
+  if AStyle <> nil then
+  begin
+    if (Ord(AStyle^.ThemeMode) < Ord(Low(TRibbonThemeMode))) or
+       (Ord(AStyle^.ThemeMode) > Ord(High(TRibbonThemeMode))) then
+      raise EArgumentOutOfRangeException.Create('A configuration contains an invalid theme mode.');
+    TRibbonMetrics.ValidateValues(AStyle^.Metrics);
+  end;
   ASource.ValidateTree;
   AQuickAccess.Validate;
   AApplicationMenu.Validate;
@@ -721,6 +811,17 @@ begin
         { Logical commit ends above. The tree, references, and selection now
           describe one complete configuration. Publication may invoke native
           or user callbacks; they can raise or destroy the Ribbon. }
+        if AStyle <> nil then
+        begin
+          { Values were validated before the swap. FRestoring defers the
+            relayout to the single model publication below. }
+          FMetrics.SetValues(AStyle^.Metrics);
+          if Guard.Root = nil then Exit;
+          FStyleContext.ThemeMode := AStyle^.ThemeMode;
+          if Guard.Root = nil then Exit;
+          FStyleContext.InheritFormNativeStyles := AStyle^.InheritFormNativeStyles;
+          if Guard.Root = nil then Exit;
+        end;
         FStyleContext.Theme := ASettings.Theme;
         if Guard.Root = nil then Exit;
         ClosePopup;
@@ -882,7 +983,7 @@ begin
     ClosePopup;
     if Guard.Root = nil then Exit;
     if AValue then
-      Height := Max(RibbonDefaultTabHeight,
+      Height := Max(FMetrics.TabMinHeight,
         FPresenter.RecommendedTabHeight) + 8
     else
       Height := FExpandedHeight;
@@ -1405,8 +1506,7 @@ begin
         Break;
       end;
     end;
-    MinimumTarget := 28;
-    if FInputDensity = ridTouch then MinimumTarget := 44;
+    MinimumTarget := FMetrics.MinimumTarget(FInputDensity);
     TabRect := FStyleAdapter.TabStripRect;
     { Style parts describe placement, but the real Ribbon client is the limit.
       Preserve logical units; scene scale only invalidates raster measurement.
@@ -1421,7 +1521,7 @@ begin
     FQuickAccessScroll.Visible := QATHeight > 0;
     if Guard.Root = nil then Exit;
     TabHeight := Max(MinimumTarget, Max(TabRect.Height,
-      Max(RibbonDefaultTabHeight, FPresenter.RecommendedTabHeight)));
+      Max(FMetrics.TabMinHeight, FPresenter.RecommendedTabHeight)));
     FApplicationButton.Visible := FApplicationButtonVisible and
       (FApplicationMenu.Count > 0);
       if Guard.Root = nil then Exit;
@@ -1512,7 +1612,7 @@ begin
     if Guard.Root = nil then Exit;
     ViewWidth := Max(0, FBodyScroll.ViewportRect.Width);
     ViewHeight := Max(0, FBodyScroll.ViewportRect.Height);
-    Metrics := FPresenter.EffectiveMetrics(TRibbonLayoutMetrics.Default);
+    Metrics := FPresenter.EffectiveMetrics(FMetrics.ToLayoutMetrics);
     if Guard.Root = nil then Exit;
     FCompactButton.ApplyStyleLookup;
     if Guard.Root = nil then Exit;
@@ -2303,6 +2403,41 @@ begin
   FStyleContext.Theme := AValue;
 end;
 
+function TCamARTRibbon.GetThemeMode: TRibbonThemeMode;
+begin
+  Result := rtmAuto;
+  if FStyleContext <> nil then Result := FStyleContext.ThemeMode;
+end;
+
+procedure TCamARTRibbon.SetThemeMode(const AValue: TRibbonThemeMode);
+begin
+  FStyleContext.ThemeMode := AValue;
+end;
+
+function TCamARTRibbon.GetInheritFormNativeStyles: Boolean;
+begin
+  Result := (FStyleContext <> nil) and FStyleContext.InheritFormNativeStyles;
+end;
+
+procedure TCamARTRibbon.SetInheritFormNativeStyles(const AValue: Boolean);
+begin
+  FStyleContext.InheritFormNativeStyles := AValue;
+end;
+
+procedure TCamARTRibbon.SetMetrics(const AValue: TRibbonMetrics);
+begin
+  FMetrics.Assign(AValue);
+end;
+
+procedure TCamARTRibbon.MetricsChanged(Sender: TObject);
+begin
+  if not FReady or FDestroying then Exit;
+  { Size floors feed measurement: drop cached measures, then relayout.
+    During streaming Refresh is deferred to Loaded. }
+  FPresenter.InvalidateMeasurements;
+  Refresh;
+end;
+
 function TCamARTRibbon.GetStyleDiagnostics: string;
 begin
   Result := '';
@@ -2337,6 +2472,7 @@ procedure TCamARTRibbon.ApplyTheme;
 var
   Guard: TRibbonExecutionGuard;
   Diagnostic: string;
+  StyleHandler: TNotifyEvent;
 
 begin
   if not FReady or FDestroying or FApplyingTheme then Exit;
@@ -2362,7 +2498,10 @@ begin
       FLastStyleDiagnostic := Diagnostic;
       if Diagnostic <> '' then ReportDiagnostic(Diagnostic);
     end;
-    { ReportDiagnostic is the final external callback. }
+    if Guard.Root = nil then Exit;
+    StyleHandler := Guard.Root.FOnStyleChanged;
+    { OnStyleChanged is the final external callback; no access follows. }
+    if Assigned(StyleHandler) then StyleHandler(Guard.Root);
   finally
     Guard.Free;
   end;
@@ -2525,7 +2664,7 @@ begin
         FSelectionEventPending := FSelection.Select(Requested, TabStates)
       else
         FSelectionEventPending := FSelection.Reconcile(TabStates);
-      if FCollapsed then Height := RibbonDefaultTabHeight + 8;
+      if FCollapsed then Height := FMetrics.TabMinHeight + 8;
       if Guard.Root = nil then Exit;
       FModel.Changed([rckStructure, rckMeasure, rckState]);
     finally

@@ -174,6 +174,27 @@ begin
   Result.CompactCaption := AValue.CompactCaption;
 end;
 
+function StyleSettings(const AValue: TRibbonJsonSettings): TRibbonStyleConfiguration;
+begin
+  { Absent style keys already carry their defaults in AValue. }
+  Result := TRibbonStyleConfiguration.Default;
+  if AValue.ThemeMode = 'manual' then Result.ThemeMode := rtmManual
+  else if AValue.ThemeMode = 'auto' then Result.ThemeMode := rtmAuto
+  else raise EArgumentException.Create('Unknown Ribbon theme mode key: ' + AValue.ThemeMode);
+  Result.InheritFormNativeStyles := AValue.InheritFormNativeStyles;
+  Result.Metrics := AValue.Metrics;
+end;
+
+function JsonSettingsWithStyle(const AValue: TRibbonConfigurationSettings;
+  const AStyle: TRibbonStyleConfiguration): TRibbonJsonSettings;
+begin
+  Result := JsonSettings(AValue);
+  if AStyle.ThemeMode = rtmManual then Result.ThemeMode := 'manual'
+  else Result.ThemeMode := 'auto';
+  Result.InheritFormNativeStyles := AStyle.InheritFormNativeStyles;
+  Result.Metrics := AStyle.Metrics;
+end;
+
 procedure RequireRibbon(ARibbon: TCamARTRibbon);
 begin
   if TThread.CurrentThread.ThreadID <> MainThreadID then
@@ -195,6 +216,7 @@ var
   Document: TRibbonJsonDocument;
   Icons: IRibbonJsonIconResolver;
   Settings: TRibbonConfigurationSettings;
+  Style: TRibbonStyleConfiguration;
   Watch: TRibbonJsonRootWatch;
 begin
   RequireRibbon(ARibbon);
@@ -205,11 +227,12 @@ begin
     Document := TRibbonJsonCodec.Parse(AText, ARibbon.CommandResolver,
       Icons, ALimits);
     Settings := VisualSettings(Document.Settings);
+    Style := StyleSettings(Document.Settings);
     Result := Document.Diagnostics.Text;
     if Watch.Root = nil then
       raise EInvalidOperation.Create('The Ribbon was destroyed by a configuration resolver.');
     Watch.Root.ApplyConfiguration(Document.Model, Document.QuickAccess,
-      Document.ApplicationMenu, Settings);
+      Document.ApplicationMenu, Settings, Style);
     { No Ribbon access after publication: OnActiveTabChanged may free it.
       The document now owns the old tabs and releases them in finally. }
   finally
@@ -222,7 +245,8 @@ class function TRibbonJsonFMX.Save(ARibbon: TCamARTRibbon): string;
 begin
   RequireRibbon(ARibbon);
   Result := TRibbonJsonCodec.Export(ARibbon.Model, ARibbon.QuickAccess,
-    ARibbon.ApplicationMenu, JsonSettings(ARibbon.CaptureConfigurationSettings));
+    ARibbon.ApplicationMenu, JsonSettingsWithStyle(
+      ARibbon.CaptureConfigurationSettings, ARibbon.CaptureStyleConfiguration));
 end;
 
 end.

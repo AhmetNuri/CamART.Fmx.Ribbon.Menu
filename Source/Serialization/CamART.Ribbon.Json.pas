@@ -13,7 +13,15 @@ uses
   CamART.Ribbon.References;
 
 const
+  { The style keys (themeMode, inheritFormNativeStyles, metrics) are an
+    optional, backward compatible v2 extension: older readers ignore them with
+    a diagnostic, newer readers default every absent key. }
   RibbonJsonSchemaVersion = 2;
+  { JSON keys of TRibbonMetricValues, in the same index order. }
+  RibbonJsonMetricKeys: array[0..9] of string = ('tabMinHeight',
+    'largeButtonMinHeight', 'smallButtonMinHeight', 'separatorMinHeight',
+    'contentMinHeight', 'groupPadding', 'itemGap', 'groupGap',
+    'captionHeight', 'captionGap');
 
 type
   ERibbonJsonError = class(Exception)
@@ -51,7 +59,13 @@ type
     InputDensity: TRibbonInputDensity;
     ReduceMotion: Boolean;
     CompactCaption: string;
+    { Optional style extension (absent keys keep these defaults). }
+    ThemeMode: string; // 'auto' | 'manual'
+    InheritFormNativeStyles: Boolean;
+    Metrics: TRibbonMetricValues;
     class function Default: TRibbonJsonSettings; static;
+    { True when any style setting differs from its default. }
+    function HasStyleSettings: Boolean;
   end;
 
   { This ordinary component owns its detached tabs, which own groups/items.
@@ -153,6 +167,7 @@ type
       const APath: string; AIndex: Integer);
     procedure ReadTab(AObject: TJSONObject; const APath: string; AIndex: Integer);
     procedure ReadSettings(AObject: TJSONObject);
+    procedure ReadMetrics(AObject: TJSONObject; var AValues: TRibbonMetricValues);
     procedure ResolveReferences;
     procedure ResolveLinks(ALinks: TRibbonCommandLinks; const APath: string);
   public
@@ -203,6 +218,21 @@ begin
   Result.InputDensity := ridPointer;
   Result.ReduceMotion := True;
   Result.CompactCaption := 'Commands';
+  Result.ThemeMode := 'auto';
+  Result.InheritFormNativeStyles := False;
+  Result.Metrics := TRibbonMetrics.Defaults;
+end;
+
+function TRibbonJsonSettings.HasStyleSettings: Boolean;
+var
+  Defaults: TRibbonMetricValues;
+  I: Integer;
+begin
+  Result := (ThemeMode <> 'auto') or InheritFormNativeStyles;
+  if Result then Exit;
+  Defaults := TRibbonMetrics.Defaults;
+  for I := Low(Defaults) to High(Defaults) do
+    if Metrics[I] <> Defaults[I] then Exit(True);
 end;
 
 constructor TRibbonJsonDocument.Create(AOwner: TComponent);
@@ -1017,6 +1047,23 @@ begin
   end;
 end;
 
+procedure TJsonReader.ReadMetrics(AObject: TJSONObject;
+  var AValues: TRibbonMetricValues);
+var
+  I: Integer;
+  Value: Double;
+begin
+  CheckProperties(AObject, '$.metrics', RibbonJsonMetricKeys);
+  for I := Low(RibbonJsonMetricKeys) to High(RibbonJsonMetricKeys) do
+  begin
+    Value := Number(AObject, RibbonJsonMetricKeys[I], '$.metrics', AValues[I]);
+    if not TRibbonMetrics.IsValidValue(Value) then
+      JsonError('$.metrics.' + RibbonJsonMetricKeys[I], 'range',
+        'Ribbon metrics must be finite and nonnegative.');
+    AValues[I] := Value;
+  end;
+end;
+
 procedure TJsonReader.ReadSettings(AObject: TJSONObject);
 var
   Settings: TRibbonJsonSettings;
@@ -1053,6 +1100,14 @@ begin
   else JsonError('$.inputDensity', 'enum', 'Expected pointer or touch.');
   Settings.ReduceMotion := Bool(AObject, 'reduceMotion', '$', True);
   Settings.CompactCaption := Text(AObject, 'compactCaption', '$', 'Commands');
+  { Style extension: each key is optional and keeps its default, so every
+    existing v1/v2 document loads unchanged. }
+  Settings.ThemeMode := Text(AObject, 'themeMode', '$', 'auto');
+  if (Settings.ThemeMode <> 'auto') and (Settings.ThemeMode <> 'manual') then
+    JsonError('$.themeMode', 'enum', 'Expected auto or manual.');
+  Settings.InheritFormNativeStyles := Bool(AObject, 'inheritFormNativeStyles', '$', False);
+  if Member(AObject, 'metrics') <> nil then
+    ReadMetrics(ObjectValue(Member(AObject, 'metrics'), '$.metrics'), Settings.Metrics);
   FDocument.Settings := Settings;
 end;
 
@@ -1117,7 +1172,8 @@ begin
   CheckProperties(ARoot, '$', ['schemaVersion', 'theme', 'activeTabId', 'collapsed',
     'quickAccessVisible', 'quickAccessPosition', 'applicationCaption',
     'applicationButtonVisible', 'expandedHeight', 'inputDensity', 'reduceMotion',
-    'compactCaption', 'tabs', 'quickAccess', 'applicationMenu']);
+    'compactCaption', 'tabs', 'quickAccess', 'applicationMenu',
+    'themeMode', 'inheritFormNativeStyles', 'metrics']);
   if FVersion = 1 then
     FDocument.Diagnostics.Add('$: migrated v1 input; generated missing IDs are retained by canonical export.');
   ReadSettings(ARoot);
@@ -1224,6 +1280,9 @@ var
   Group: TRibbonGroup;
   Item: TRibbonItem;
   TabIndex, GroupIndex, ItemIndex: Integer;
+  MetricIndex: Integer;
+  DefaultMetrics: TRibbonMetricValues;
+  MetricsObject: TJSONObject;
 
   procedure WriteIdentity(AObject: TJSONObject; const AId: string; AIndex: Integer);
   begin
@@ -1398,6 +1457,12 @@ begin
   if IsNan(ASettings.ExpandedHeight) or IsInfinite(ASettings.ExpandedHeight) or
      (ASettings.ExpandedHeight <= 0) then
     JsonError('$.expandedHeight', 'range', 'Cannot export a nonpositive or nonfinite height.');
+  if (ASettings.ThemeMode <> 'auto') and (ASettings.ThemeMode <> 'manual') then
+    JsonError('$.themeMode', 'enum', 'Cannot export an unknown theme mode.');
+  for MetricIndex := Low(ASettings.Metrics) to High(ASettings.Metrics) do
+    if not TRibbonMetrics.IsValidValue(ASettings.Metrics[MetricIndex]) then
+      JsonError('$.metrics.' + RibbonJsonMetricKeys[MetricIndex], 'range',
+        'Cannot export a negative or nonfinite metric.');
   Root := TJSONObject.Create;
   Seen := nil;
   try
@@ -1425,6 +1490,25 @@ begin
     else AddText(Root, 'inputDensity', 'touch');
     AddBool(Root, 'reduceMotion', ASettings.ReduceMotion);
     AddText(Root, 'compactCaption', ASettings.CompactCaption);
+    { Style keys are written only when they differ from their defaults, so a
+      default configuration exports byte-identically to earlier releases. }
+    if ASettings.ThemeMode <> 'auto' then
+      AddText(Root, 'themeMode', ASettings.ThemeMode);
+    if ASettings.InheritFormNativeStyles then
+      AddBool(Root, 'inheritFormNativeStyles', True);
+    DefaultMetrics := TRibbonMetrics.Defaults;
+    MetricsObject := nil;
+    for MetricIndex := Low(DefaultMetrics) to High(DefaultMetrics) do
+      if ASettings.Metrics[MetricIndex] <> DefaultMetrics[MetricIndex] then
+      begin
+        if MetricsObject = nil then
+        begin
+          MetricsObject := TJSONObject.Create;
+          Root.AddPair('metrics', MetricsObject);
+        end;
+        AddNumber(MetricsObject, RibbonJsonMetricKeys[MetricIndex],
+          ASettings.Metrics[MetricIndex]);
+      end;
     Tabs := TJSONArray.Create;
     Root.AddPair('tabs', Tabs);
     TabIndex := 0;
